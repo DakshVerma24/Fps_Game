@@ -817,17 +817,18 @@ class NetworkManager {
   constructor(roomCode, playerName) {
     this.roomCode = roomCode.toUpperCase().trim() || 'SECTOR-7';
     this.playerName = playerName.trim() || myPlayerName;
+    this.hostPeerId = `cyberfps-host-${this.roomCode}`;
     this.peer = null;
     this.hostConn = null;
     this.clients = new Map();
     this.isHost = false;
     this.lastBroadcast = 0;
-    this.init();
+    this.retriedIdCollision = false;
+    this.connectAsClient();
   }
 
-  init() {
-    const hostPeerId = `cyberfps-host-${this.roomCode}`;
-    const myRandomId = `cyberfps-p-${this.roomCode}-${Math.floor(Math.random() * 100000)}`;
+  connectAsClient() {
+    const myRandomId = `cyberfps-p-${this.roomCode}-${Math.floor(Math.random() * 1000000)}`;
 
     netTextEl.textContent = 'CONNECTING...';
     netStatusEl.style.background = '#ffdd44';
@@ -836,8 +837,8 @@ class NetworkManager {
     this.peer = new Peer(myRandomId);
 
     this.peer.on('open', () => {
-      const conn = this.peer.connect(hostPeerId, { reliable: false });
-      
+      const conn = this.peer.connect(this.hostPeerId, { reliable: false });
+
       let hostFound = false;
       conn.on('open', () => {
         hostFound = true;
@@ -851,22 +852,26 @@ class NetworkManager {
       // If no host exists after 1.8s, self-promote to Host
       setTimeout(() => {
         if (!hostFound && !this.isHost) {
-          this.becomeHost(hostPeerId);
+          this.becomeHost();
         }
       }, 1800);
     });
 
     this.peer.on('error', (err) => {
-      if (err.type === 'unavailable-id') {
-        // ID taken, retry as standard client
-        this.peer = new Peer(myRandomId + 'x');
+      if (err.type === 'unavailable-id' && !this.retriedIdCollision) {
+        // Our random client id collided with someone else's — extremely rare, but retry
+        // with a fresh id instead of silently dying with no listeners attached.
+        this.retriedIdCollision = true;
+        this.connectAsClient();
+      } else {
+        console.warn('NetworkManager peer error:', err);
       }
     });
   }
 
-  becomeHost(hostId) {
+  becomeHost() {
     if (this.peer) this.peer.destroy();
-    this.peer = new Peer(hostId);
+    this.peer = new Peer(this.hostPeerId);
     this.isHost = true;
 
     this.peer.on('open', () => {
@@ -895,9 +900,18 @@ class NetworkManager {
       });
     });
 
-    this.peer.on('error', () => {
-      netTextEl.textContent = 'SOLO (OFFLINE)';
-      netStatusEl.style.background = '#8899aa';
+    this.peer.on('error', (err) => {
+      if (err.type === 'unavailable-id') {
+        // Someone else won the race to become host between our timeout firing and this
+        // attempt registering — that's fine, a host now genuinely exists, so join them
+        // as a client instead of giving up and sitting in solo mode forever.
+        this.isHost = false;
+        this.connectAsClient();
+      } else {
+        console.warn('NetworkManager host error:', err);
+        netTextEl.textContent = 'SOLO (OFFLINE)';
+        netStatusEl.style.background = '#8899aa';
+      }
     });
   }
 
@@ -994,6 +1008,10 @@ class NetworkManager {
 }
 
 let networkManager = null;
+
+window.addEventListener('beforeunload', () => {
+  if (networkManager && networkManager.peer) networkManager.peer.destroy();
+});
 
 // ================= Controls & Input =================
 const controls = new PointerLockControls(camera, document.body);
