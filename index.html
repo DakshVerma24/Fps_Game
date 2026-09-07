@@ -1,11 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Cyberpunk City FPS - Red vs Blue Urban Warfare</title>
-<!-- PeerJS for WebRTC Mesh / P2P Multiplayer -->
+<title>Cyberpunk City FPS - Red vs Blue Urban Warfare (Proximity Chat)</title>
+<!-- PeerJS for WebRTC Mesh / P2P Multiplayer & Audio -->
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
   html, body { 
@@ -57,7 +56,7 @@
     border-radius: 50%; pointer-events: none;
   }
   .sniper-reticle::before {
-    content: 'RANGE: 160m // ELEVATION SYNC: ACTIVE'; position: absolute; bottom: 20px; left: 50%;
+    content: 'RANGE: 160m // PROX-COMMS: ARMED'; position: absolute; bottom: 20px; left: 50%;
     transform: translateX(-50%); color: #00ff88; font-size: 10px; letter-spacing: 2px;
     text-shadow: 0 0 4px #00ff88;
   }
@@ -81,7 +80,7 @@
     position: fixed; top: 16px; left: 16px; color: #00e5ff; z-index: 10;
     text-shadow: 0 0 8px #00e5ff; font-size: 13px; line-height: 1.5;
     background: rgba(10, 15, 30, 0.85); padding: 8px 14px; border: 1px solid rgba(0, 229, 255, 0.5);
-    border-radius: 4px; backdrop-filter: blur(4px);
+    border-radius: 4px; backdrop-filter: blur(4px); display: flex; align-items: center; gap: 8px;
   }
   #match-scoreboard {
     position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
@@ -106,12 +105,71 @@
     border-radius: 4px; backdrop-filter: blur(4px);
   }
 
+  /* ================= PROXIMITY VOICE CHAT HUD TABS ================= */
+  #voiceSpeakerTabs {
+    position: fixed; top: 72px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 8px; align-items: center; justify-content: center;
+    z-index: 15; max-width: 90vw; flex-wrap: wrap; pointer-events: none;
+  }
+  .voice-tab {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(10, 14, 26, 0.82); border: 1px solid #29384d;
+    padding: 4px 10px; border-radius: 4px; font-size: 11px; color: #88aacc;
+    backdrop-filter: blur(4px); transition: all 0.15s ease-out;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  }
+  .voice-tab.team-red { border-left: 3px solid #ff3355; }
+  .voice-tab.team-blue { border-left: 3px solid #00e5ff; }
+  .voice-tab.speaking {
+    border-color: #00ff88; box-shadow: 0 0 14px rgba(0, 255, 136, 0.7);
+    color: #ffffff; background: rgba(5, 36, 20, 0.9);
+    transform: translateY(-2px) scale(1.05);
+  }
+  .voice-tab.muted { opacity: 0.55; }
+  .voice-tab-icon { font-size: 12px; }
+  .voice-tab.speaking .voice-tab-icon {
+    filter: drop-shadow(0 0 6px #00ff88);
+  }
+  .voice-tab-dist {
+    font-size: 9px; padding: 1px 4px; border-radius: 2px;
+    background: rgba(0, 229, 255, 0.15); color: #00e5ff;
+  }
+  .voice-wave {
+    display: inline-flex; gap: 2px; align-items: flex-end; height: 10px; width: 10px;
+  }
+  .voice-wave span {
+    width: 2px; height: 3px; background: #557799; border-radius: 1px;
+    transition: height 0.1s ease;
+  }
+  .voice-tab.speaking .voice-wave span {
+    background: #00ff88; box-shadow: 0 0 4px #00ff88;
+    animation: waveBounce 0.4s infinite alternate ease-in-out;
+  }
+  .voice-tab.speaking .voice-wave span:nth-child(1) { animation-delay: 0.0s; }
+  .voice-tab.speaking .voice-wave span:nth-child(2) { animation-delay: 0.15s; }
+  .voice-tab.speaking .voice-wave span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes waveBounce {
+    0% { height: 2px; }
+    100% { height: 10px; }
+  }
+
+  /* HUD Mic Toggle Badge */
+  #micHudToggle {
+    cursor: pointer; pointer-events: auto; display: flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 3px; border: 1px solid #00e5ff; background: rgba(0, 229, 255, 0.15);
+    font-weight: bold; font-size: 11px; transition: all 0.15s;
+  }
+  #micHudToggle:hover { background: rgba(0, 229, 255, 0.35); }
+  #micHudToggle.muted {
+    border-color: #ff3355; color: #ff3355; background: rgba(255, 51, 85, 0.15);
+  }
+
   #netStatus {
     display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-    background: #00ff88; box-shadow: 0 0 6px #00ff88; margin-right: 6px;
+    background: #00ff88; box-shadow: 0 0 6px #00ff88;
   }
   #killfeed {
-    position: fixed; top: 80px; right: 16px; z-index: 10;
+    position: fixed; top: 110px; right: 16px; z-index: 10;
     display: flex; flex-direction: column; gap: 6px; pointer-events: none;
     align-items: flex-end;
   }
@@ -197,7 +255,7 @@
   }
   .btn-secondary:hover { background: rgba(0, 229, 255, 0.35); }
 
-  /* Lobby Specific UI */
+  /* Lobby UI */
   .lobby-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; text-align: left;
   }
@@ -228,10 +286,8 @@
   .weapon-card-title { font-weight: bold; font-size: 13px; color: #00e5ff; margin-bottom: 4px; }
   .weapon-card-stats { font-size: 10px; color: #8899aa; }
 
-  /* Respawn Loadout Screen */
+  /* Modals */
   #respawnModal { display: none; z-index: 25; }
-
-  /* End Game Screen */
   #endGameModal { display: none; z-index: 35; }
   .stat-grid {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 20px 0;
@@ -264,6 +320,7 @@
     #portraitWarning { display: flex; }
   }
 
+  /* Mobile Controls */
   #touchControls {
     display: none; position: fixed; inset: 0; pointer-events: none; z-index: 14;
   }
@@ -323,6 +380,18 @@
     pointer-events: auto; text-shadow: 0 0 5px #ffdd44;
   }
   #jumpBtn:active { background: rgba(255, 221, 68, 0.4); }
+
+  #micTouchBtn {
+    position: absolute; bottom: 175px; left: 32px;
+    width: 50px; height: 50px; border-radius: 50%;
+    background: rgba(10, 15, 30, 0.85); border: 2px solid #00ff88;
+    color: #00ff88; font-size: 18px; font-weight: bold;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: auto; text-shadow: 0 0 8px #00ff88; box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
+  }
+  #micTouchBtn.muted {
+    border-color: #ff3355; color: #ff3355; box-shadow: 0 0 10px rgba(255, 51, 85, 0.4);
+  }
 </style>
 </head>
 <body>
@@ -336,6 +405,9 @@
 <div id="hud-top-left">
   <span id="netStatus"></span><span id="netText">LOBBY</span> &nbsp;|&nbsp;
   TEAM: <span id="hudMyTeam" style="font-weight:bold;">RED</span>
+  <div id="micHudToggle" title="Press [V] to Toggle Mic">
+    <span id="micHudIcon">🎙️</span><span id="micHudLabel">MIC ON [V]</span>
+  </div>
 </div>
 
 <div id="match-scoreboard">
@@ -343,6 +415,9 @@
   <div id="timer-badge">10:00</div>
   <div class="team-score-badge score-blue"><span id="blueScore">0</span> BLUE</div>
 </div>
+
+<!-- Proximity Voice Speaker Activity Tabs -->
+<div id="voiceSpeakerTabs"></div>
 
 <div id="hud-top-right">
   MODE: <span id="hudModeName" style="color:#ffdd44;">NORMAL</span><br>
@@ -379,17 +454,19 @@
   <div id="adsBtn">AIM</div>
   <div id="reloadBtn">RELOAD</div>
   <div id="jumpBtn">JUMP</div>
+  <div id="micTouchBtn">🎙️</div>
 </div>
 
 <!-- ENTRY MODAL -->
 <div id="entryModal" class="modal-overlay">
   <div class="panel">
     <h1>CYBER DISTRICT // RED VS BLUE</h1>
-    <p style="color:#aaccff;">Urban Team Tactical FPS &bull; WebRTC Mesh</p>
+    <p style="color:#aaccff;">Urban Team Tactical FPS &bull; Proximity Voice Mesh &bull; WebRTC</p>
     <div class="mp-row">
       <input type="text" id="playerNameInput" class="mp-input" placeholder="Operative Call-sign" maxlength="12" style="width: 220px;" />
       <input type="text" id="roomCodeInput" class="mp-input" placeholder="Room Code (eg: 777)" maxlength="8" style="width: 160px;" />
     </div>
+    <div style="font-size: 11px; color: #00ff88; margin-top: 6px;">🎙️ 3D Proximity Voice Chat Enabled (Headphones Recommended)</div>
     <div class="mp-row" style="margin-top: 18px;">
       <button class="btn-play" id="enterLobbyBtn">CONNECT TO LOBBY</button>
       <button class="btn-secondary" id="soloLobbyBtn">SOLO BOT MATCH</button>
@@ -874,7 +951,7 @@ addNeonBillboard(62.8, heightAt(62.8, -38) + 14, -38, 22, 5.5, 'ARASAKA HQ', 'OR
   }
 }
 
-// Water Towers, Stalls, Containers & Monuments
+// Coolant Towers & Cover Objects
 function addWaterCoolantTower(x, z, radius = 4.5, tankH = 6.5, legH = 9, accentHex = 0x00e5ff) {
   const baseY = heightAt(x, z);
   const group = new THREE.Group();
@@ -919,68 +996,6 @@ function addWaterCoolantTower(x, z, radius = 4.5, tankH = 6.5, legH = 9, accentH
   scene.add(group);
 }
 
-function addCyberMarketStall(x, z, w, d, rotY, title, subtitle, neonColorHex) {
-  const baseY = heightAt(x, z);
-  const stallGroup = new THREE.Group();
-  stallGroup.position.set(x, baseY, z);
-  stallGroup.rotation.y = rotY;
-
-  const darkMat = new THREE.MeshStandardMaterial({ color: 0x141822, roughness: 0.7, metalness: 0.4 });
-  const woodCounterMat = new THREE.MeshStandardMaterial({ color: 0x422f1c, roughness: 0.6 });
-
-  const counterH = 1.2;
-  const baseBox = new THREE.Mesh(new THREE.BoxGeometry(w, counterH, d * 0.6), darkMat);
-  baseBox.position.set(0, counterH / 2, -d * 0.2);
-  stallGroup.add(baseBox);
-
-  const counterTop = new THREE.Mesh(new THREE.BoxGeometry(w + 0.3, 0.12, d * 0.65), woodCounterMat);
-  counterTop.position.set(0, counterH + 0.06, -d * 0.2);
-  stallGroup.add(counterTop);
-
-  const poleGeo = new THREE.CylinderGeometry(0.06, 0.06, 2.4, 8);
-  const p1 = new THREE.Mesh(poleGeo, darkMat); p1.position.set(-w / 2 + 0.15, 1.2, -d / 2 + 0.15);
-  const p2 = new THREE.Mesh(poleGeo, darkMat); p2.position.set(w / 2 - 0.15, 1.2, -d / 2 + 0.15);
-  const p3 = new THREE.Mesh(poleGeo, darkMat); p3.position.set(-w / 2 + 0.15, 1.2, d / 2 - 0.15);
-  const p4 = new THREE.Mesh(poleGeo, darkMat); p4.position.set(w / 2 - 0.15, 1.2, d / 2 - 0.15);
-  stallGroup.add(p1, p2, p3, p4);
-
-  const canopyMat = new THREE.MeshStandardMaterial({ color: 0x1a2130, roughness: 0.5 });
-  const canopy = new THREE.Mesh(new THREE.BoxGeometry(w + 0.6, 0.15, d + 0.6), canopyMat);
-  canopy.position.set(0, 2.5, 0); canopy.rotation.x = 0.15;
-  stallGroup.add(canopy);
-
-  const signMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(w * 0.8, 0.65),
-    new THREE.MeshBasicMaterial({ map: createNeonSignTexture(title, subtitle, neonColorHex), side: THREE.DoubleSide })
-  );
-  signMesh.position.set(0, 2.3, d / 2 + 0.1);
-  stallGroup.add(signMesh);
-
-  scene.add(stallGroup);
-  addCollider(x, baseY + 1.3, z, w + 0.4, 2.6, d + 0.4);
-  addFoundation(w + 0.2, d + 0.2, x, z, baseY - 6);
-}
-
-function addContainerStack(x, z, rotY = 0) {
-  const baseY = heightAt(x, z);
-  const group = new THREE.Group();
-  group.position.set(x, baseY, z); group.rotation.y = rotY;
-
-  const cMat1 = new THREE.MeshStandardMaterial({ map: createContainerTexture('ORBITAL // 01', '#1e3852', '#00e5ff'), roughness: 0.4, metalness: 0.6 });
-  const cMat2 = new THREE.MeshStandardMaterial({ map: createContainerTexture('DANGER // BIO', '#521e28', '#ff2bd6'), roughness: 0.4, metalness: 0.6 });
-  const cMat3 = new THREE.MeshStandardMaterial({ map: createContainerTexture('CARGO // 88', '#4d411d', '#ffcc00'), roughness: 0.4, metalness: 0.6 });
-
-  const cW = 8.0, cH = 3.0, cD = 3.2;
-  const c1 = new THREE.Mesh(new THREE.BoxGeometry(cW, cH, cD), cMat1); c1.position.set(0, cH / 2, -cD * 0.55);
-  const c2 = new THREE.Mesh(new THREE.BoxGeometry(cW, cH, cD), cMat2); c2.position.set(0, cH / 2, cD * 0.55);
-  const c3 = new THREE.Mesh(new THREE.BoxGeometry(cW, cH, cD), cMat3); c3.position.set(0.6, cH * 1.5, 0); c3.rotation.y = 0.12;
-  group.add(c1, c2, c3);
-
-  scene.add(group);
-  addCollider(x, baseY + cH, z, cW + 1, cH * 2, cD * 2.2);
-  addFoundation(cW + 1, cD * 2.2, x, z, baseY - 6);
-}
-
 let holoGemMesh = null;
 function addHoloPlaza(x, z) {
   const baseY = heightAt(x, z);
@@ -1005,23 +1020,11 @@ function addHoloPlaza(x, z) {
   addFoundation(9.5, 9.5, x, z, baseY - 6);
 }
 
-// Instantiate Fillers
-addDenseBuilding(18, 9, 22, -28, 48, new THREE.MeshStandardMaterial({ map: texDarkMaroon }), 0xff0055);
-addDenseBuilding(22, 8, 16, 8, -72, new THREE.MeshStandardMaterial({ map: texDarkSlate }), 0x00e5ff);
-addDenseBuilding(18, 8, 18, 48, 4, new THREE.MeshStandardMaterial({ map: texDarkGold }), 0xffaa00);
-
 addWaterCoolantTower(-52, 68, 4.2, 6.0, 8.0, 0x00ff88);
 addWaterCoolantTower(28, -72, 4.0, 6.5, 8.5, 0x00e5ff);
 addWaterCoolantTower(34, 72, 4.2, 6.0, 8.0, 0xff2bd6);
-
-addCyberMarketStall(-56, 24, 4.5, 2.8, Math.PI / 2, 'NEO TOKYO RAMEN', 'SYNTH-BROTH // SECTOR 07', '#ffaa00');
-addCyberMarketStall(-8, -36, 4.2, 2.6, 0, 'CYBERNETICS 24/7', 'NEURAL UPGRADES', '#00e5ff');
-addCyberMarketStall(28, 36, 4.2, 2.6, -Math.PI / 2, 'DOKI NOODLES', 'MIDNIGHT DUMPLINGS', '#00ff88');
-
-addContainerStack(10, 66, 0.2);
 addHoloPlaza(10, -56);
 
-// Covers
 const concreteCoverMat = new THREE.MeshStandardMaterial({ map: bunkerCrateTex, roughness: 0.6, metalness: 0.4 });
 const woodCoverMat = new THREE.MeshStandardMaterial({ map: woodCrateTex, roughness: 0.7, metalness: 0.3 });
 function addCoverObject(w, h, d, x, z, mat = woodCoverMat) {
@@ -1053,7 +1056,7 @@ const WEAPONS = [
   { key: 'SNIPER',  name: 'RAIL-SNIPER // APEX',     damage: 85, fireDelay: 1.4,  mag: 5,  reserve: 15,  reload: 2.8, bulletSpeed: 115, spread: 0.001, pellets: 1, life: 3.0, color: 0x1e222a, fov: 14, scopeType: 'SNIPER', recoilKick: 0.065, recoilSide: 0.006 },
 ];
 
-let selectedLoadoutIndex = 0; // Chosen weapon (locked during life)
+let selectedLoadoutIndex = 0;
 let currentWeaponIndex = 0;
 const ammoState = WEAPONS.map(w => ({ mag: w.mag, reserve: w.reserve }));
 let fireTimer = 0;
@@ -1155,13 +1158,13 @@ function applySelectedLoadout() {
 // ================= Game Stats, Telemetry & Team Management =================
 let myPlayerName = 'AGENT-' + Math.floor(Math.random() * 899 + 100);
 let currentRoomCode = 'SECTOR-7';
-let myTeam = 'RED'; // 'RED' or 'BLUE'
+let myTeam = 'RED';
 let isMatchActive = false;
 let isSoloMode = false;
 
-let matchDuration = 600; // 10 minutes default
+let matchDuration = 600;
 let timeRemaining = 600;
-let gameMode = 'NORMAL'; // 'NORMAL', 'NOAMMO', 'SPEED'
+let gameMode = 'NORMAL';
 
 let redScore = 0;
 let blueScore = 0;
@@ -1176,6 +1179,11 @@ const hudModeNameEl = document.getElementById('hudModeName');
 const hudKillsEl = document.getElementById('hudKills');
 const hudDeathsEl = document.getElementById('hudDeaths');
 const hudKDEl = document.getElementById('hudKD');
+const voiceSpeakerTabsEl = document.getElementById('voiceSpeakerTabs');
+const micHudToggle = document.getElementById('micHudToggle');
+const micHudIcon = document.getElementById('micHudIcon');
+const micHudLabel = document.getElementById('micHudLabel');
+const micTouchBtn = document.getElementById('micTouchBtn');
 
 const redTeamListEl = document.getElementById('redTeamList');
 const blueTeamListEl = document.getElementById('blueTeamList');
@@ -1227,7 +1235,6 @@ function updateWeaponHud() {
   slots.forEach((s, i) => s.classList.toggle('active', i === currentWeaponIndex));
 }
 
-// Loadout Card Click Listeners
 function setupLoadoutPicker(containerId) {
   const cards = document.querySelectorAll(`#${containerId} .weapon-card`);
   cards.forEach(card => {
@@ -1241,6 +1248,270 @@ function setupLoadoutPicker(containerId) {
 }
 setupLoadoutPicker('lobbyLoadoutPicker');
 setupLoadoutPicker('respawnLoadoutPicker');
+
+// ================= 3D Proximity Voice Chat System =================
+let voiceAudioCtx = null;
+let localVoiceStream = null;
+let localVoiceSource = null;
+let localAnalyser = null;
+let isMicMuted = false;
+let localIsSpeaking = false;
+
+// Remote voices: peerId -> { stream, source, panner, gain, analyser, hiddenAudio, isSpeaking, volume, call }
+const remoteVoices = new Map();
+const pendingVoiceCalls = new Set();
+const MAX_PROXIMITY_DIST = 55;
+const MIN_PROXIMITY_DIST = 3.5;
+
+function getOrCreateAudioContext() {
+  if (!voiceAudioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    voiceAudioCtx = new AudioContextClass();
+  }
+  if (voiceAudioCtx.state === 'suspended') {
+    voiceAudioCtx.resume();
+  }
+  return voiceAudioCtx;
+}
+
+function createSilentFallbackStream() {
+  const ctx = getOrCreateAudioContext();
+  const osc = ctx.createOscillator();
+  const dst = ctx.createMediaStreamDestination();
+  const gain = ctx.createGain();
+  gain.gain.value = 0;
+  osc.connect(gain);
+  gain.connect(dst);
+  osc.start();
+  return dst.stream;
+}
+
+async function initProximityMic() {
+  getOrCreateAudioContext();
+  if (localVoiceStream) return localVoiceStream;
+
+  try {
+    localVoiceStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      },
+      video: false
+    });
+  } catch (err) {
+    console.warn('Microphone inaccessible or denied. Engaging silent fallback stream so you can still hear other operatives.', err);
+    localVoiceStream = createSilentFallbackStream();
+    isMicMuted = true;
+  }
+
+  try {
+    localVoiceSource = voiceAudioCtx.createMediaStreamSource(localVoiceStream);
+    localAnalyser = voiceAudioCtx.createAnalyser();
+    localAnalyser.fftSize = 256;
+    localAnalyser.smoothingTimeConstant = 0.4;
+    localVoiceSource.connect(localAnalyser);
+  } catch (e) {
+    console.warn('Error attaching local audio analyser:', e);
+  }
+
+  updateMicHudDisplay();
+  return localVoiceStream;
+}
+
+function toggleMicMute() {
+  isMicMuted = !isMicMuted;
+  if (localVoiceStream) {
+    localVoiceStream.getAudioTracks().forEach(track => {
+      track.enabled = !isMicMuted;
+    });
+  }
+  updateMicHudDisplay();
+}
+
+function updateMicHudDisplay() {
+  if (isMicMuted) {
+    micHudToggle.classList.add('muted');
+    micHudIcon.textContent = '🔇';
+    micHudLabel.textContent = 'MUTED [V]';
+    micTouchBtn.classList.add('muted');
+    micTouchBtn.textContent = '🔇';
+  } else {
+    micHudToggle.classList.remove('muted');
+    micHudIcon.textContent = '🎙️';
+    micHudLabel.textContent = 'MIC ON [V]';
+    micTouchBtn.classList.remove('muted');
+    micTouchBtn.textContent = '🎙️';
+  }
+}
+
+micHudToggle.addEventListener('click', () => toggleMicMute());
+micTouchBtn.addEventListener('touchstart', (e) => { e.preventDefault(); toggleMicMute(); }, { passive: false });
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyV') toggleMicMute();
+});
+
+function setupRemoteVoice(remotePeerId, stream, call = null) {
+  const ctx = getOrCreateAudioContext();
+  cleanupRemoteVoice(remotePeerId);
+
+  // Hidden audio element to guarantee browser stream processing
+  const hiddenAudio = document.createElement('audio');
+  hiddenAudio.srcObject = stream;
+  hiddenAudio.muted = true;
+  hiddenAudio.play().catch(() => {});
+
+  const source = ctx.createMediaStreamSource(stream);
+  const panner = ctx.createPanner();
+  panner.panningModel = 'HRTF';
+  panner.distanceModel = 'inverse';
+  panner.refDistance = 3;
+  panner.maxDistance = MAX_PROXIMITY_DIST;
+  panner.rolloffFactor = 1.3;
+  panner.coneInnerAngle = 360;
+
+  const gain = ctx.createGain();
+  gain.gain.value = 1.0;
+
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 256;
+  analyser.smoothingTimeConstant = 0.4;
+
+  source.connect(analyser);
+  source.connect(panner);
+  panner.connect(gain);
+  gain.connect(ctx.destination);
+
+  remoteVoices.set(remotePeerId, {
+    stream,
+    source,
+    panner,
+    gain,
+    analyser,
+    hiddenAudio,
+    call,
+    isSpeaking: false,
+    volume: 0
+  });
+
+  updateSpeakerTabs();
+}
+
+function cleanupRemoteVoice(remotePeerId) {
+  const v = remoteVoices.get(remotePeerId);
+  if (v) {
+    try {
+      if (v.source) v.source.disconnect();
+      if (v.panner) v.panner.disconnect();
+      if (v.gain) v.gain.disconnect();
+      if (v.analyser) v.analyser.disconnect();
+      if (v.hiddenAudio) {
+        v.hiddenAudio.srcObject = null;
+        v.hiddenAudio.remove();
+      }
+    } catch (e) {}
+    remoteVoices.delete(remotePeerId);
+  }
+  pendingVoiceCalls.delete(remotePeerId);
+  updateSpeakerTabs();
+}
+
+// Check Audio Energy (RMS) for Speaker Tabs & 3D Model Glow
+const freqBuffer = new Uint8Array(128);
+const VOICE_THRESHOLD = 14;
+
+function pollVoiceActivity() {
+  // Local operative voice activity
+  if (localAnalyser && !isMicMuted) {
+    localAnalyser.getByteFrequencyData(freqBuffer);
+    let sum = 0;
+    for (let i = 0; i < freqBuffer.length; i++) sum += freqBuffer[i];
+    localIsSpeaking = (sum / freqBuffer.length) > VOICE_THRESHOLD;
+  } else {
+    localIsSpeaking = false;
+  }
+
+  // Remote operatives voice activity (all players, regardless of team)
+  remoteVoices.forEach((v, peerId) => {
+    if (v.analyser) {
+      v.analyser.getByteFrequencyData(freqBuffer);
+      let sum = 0;
+      for (let i = 0; i < freqBuffer.length; i++) sum += freqBuffer[i];
+      const avg = sum / freqBuffer.length;
+      v.volume = avg;
+      v.isSpeaking = avg > VOICE_THRESHOLD;
+
+      // In-game 3D visor glow pulse when an operative is speaking
+      const mesh = remotePlayers.get(peerId);
+      if (mesh && mesh.userData && mesh.userData.visor) {
+        if (v.isSpeaking) {
+          mesh.userData.visor.material.color.setHex(0x00ff88);
+        } else {
+          mesh.userData.visor.material.color.setHex(mesh.userData.team === 'RED' ? 0xff2244 : 0x00e5ff);
+        }
+      }
+    }
+  });
+
+  updateSpeakerTabs();
+}
+setInterval(pollVoiceActivity, 70);
+
+function updateSpeakerTabs() {
+  voiceSpeakerTabsEl.innerHTML = '';
+
+  // Local Player Tab
+  const localTab = document.createElement('div');
+  localTab.className = `voice-tab team-${myTeam.toLowerCase()}` + (localIsSpeaking ? ' speaking' : '') + (isMicMuted ? ' muted' : '');
+  localTab.innerHTML = `
+    <span class="voice-tab-icon">${isMicMuted ? '🔇' : '🎙️'}</span>
+    <span><b>${myPlayerName}</b></span>
+    <span class="voice-tab-dist">YOU</span>
+    <div class="voice-wave"><span></span><span></span><span></span></div>
+  `;
+  voiceSpeakerTabsEl.appendChild(localTab);
+
+  // If in Solo Mode, display mock bots
+  if (isSoloMode) {
+    const b1 = document.createElement('div');
+    b1.className = 'voice-tab team-blue muted';
+    b1.innerHTML = `<span class="voice-tab-icon">🤖</span><span>BOT ALPHA</span><span class="voice-tab-dist">AI</span>`;
+    const b2 = document.createElement('div');
+    b2.className = 'voice-tab team-blue muted';
+    b2.innerHTML = `<span class="voice-tab-icon">🤖</span><span>BOT BETA</span><span class="voice-tab-dist">AI</span>`;
+    voiceSpeakerTabsEl.appendChild(b1);
+    voiceSpeakerTabsEl.appendChild(b2);
+    return;
+  }
+
+  if (!networkManager) return;
+
+  // Remote Players Tabs
+  for (const [peerId, info] of networkManager.lobbyRoster.entries()) {
+    if (networkManager.peer && peerId === networkManager.peer.id) continue;
+
+    const rVoice = remoteVoices.get(peerId);
+    const rPlayerMesh = remotePlayers.get(peerId);
+    const isSpeaking = rVoice ? rVoice.isSpeaking : false;
+
+    let distLabel = 'LOBBY';
+    if (isMatchActive && rPlayerMesh) {
+      const dist = Math.round(camera.position.distanceTo(rPlayerMesh.position));
+      distLabel = dist > MAX_PROXIMITY_DIST ? '>50m' : `${dist}m`;
+    }
+
+    const tab = document.createElement('div');
+    tab.className = `voice-tab team-${(info.team || 'red').toLowerCase()}` + (isSpeaking ? ' speaking' : '');
+    tab.innerHTML = `
+      <span class="voice-tab-icon">${isSpeaking ? '🔊' : '🔈'}</span>
+      <span>${info.name || 'OPERATIVE'}</span>
+      <span class="voice-tab-dist">${distLabel}</span>
+      <div class="voice-wave"><span></span><span></span><span></span></div>
+    `;
+    voiceSpeakerTabsEl.appendChild(tab);
+  }
+}
 
 // ================= Remote Player Avatars =================
 const remotePlayers = new Map();
@@ -1284,11 +1555,11 @@ function createPlayerMesh(name, team) {
   nameTag.position.y = 2.35;
 
   root.add(chest, core, head, visor, legL, legR, armL, armR, shoulderL, shoulderR, weaponMesh, nameTag);
-  root.userData = { name, team, nameTag, targetPos: new THREE.Vector3(), targetRotY: 0, hp: 100 };
+  root.userData = { name, team, nameTag, visor, targetPos: new THREE.Vector3(), targetRotY: 0, hp: 100 };
   return root;
 }
 
-// ================= Multiplayer WebRTC Network Manager =================
+// ================= Multiplayer WebRTC Network & Voice Mesh =================
 class NetworkManager {
   constructor(roomCode, playerName) {
     this.roomCode = roomCode.toUpperCase().trim() || 'SECTOR-7';
@@ -1299,8 +1570,52 @@ class NetworkManager {
     this.clients = new Map();
     this.isHost = false;
     this.lastBroadcast = 0;
-    this.lobbyRoster = new Map(); // id -> { name, team }
+    this.lobbyRoster = new Map();
     this.connectAsClient();
+  }
+
+  setupVoiceListeners() {
+    if (!this.peer) return;
+
+    // Handle Incoming Voice Calls
+    this.peer.on('call', (call) => {
+      const streamToSend = localVoiceStream || createSilentFallbackStream();
+      call.answer(streamToSend);
+      call.on('stream', (remoteStream) => {
+        setupRemoteVoice(call.peer, remoteStream, call);
+      });
+      call.on('close', () => cleanupRemoteVoice(call.peer));
+      call.on('error', () => cleanupRemoteVoice(call.peer));
+    });
+  }
+
+  syncVoiceMeshCalls() {
+    if (!this.peer || !localVoiceStream) return;
+    const myId = this.peer.id;
+
+    // Connect to all peers in the room regardless of team (anyone can hear anyone)
+    for (const [peerId, info] of this.lobbyRoster.entries()) {
+      if (peerId === myId) continue;
+      // Deterministic call initiation: smaller lexicographical ID initiates the call
+      if (myId < peerId && !remoteVoices.has(peerId) && !pendingVoiceCalls.has(peerId)) {
+        pendingVoiceCalls.add(peerId);
+        const call = this.peer.call(peerId, localVoiceStream);
+        if (call) {
+          call.on('stream', (remoteStream) => {
+            pendingVoiceCalls.delete(peerId);
+            setupRemoteVoice(peerId, remoteStream, call);
+          });
+          call.on('close', () => {
+            pendingVoiceCalls.delete(peerId);
+            cleanupRemoteVoice(peerId);
+          });
+          call.on('error', () => {
+            pendingVoiceCalls.delete(peerId);
+            cleanupRemoteVoice(peerId);
+          });
+        }
+      }
+    }
   }
 
   connectAsClient() {
@@ -1308,6 +1623,7 @@ class NetworkManager {
     this.peer = new Peer(myRandomId);
 
     this.peer.on('open', () => {
+      this.setupVoiceListeners();
       const conn = this.peer.connect(this.hostPeerId, { reliable: true });
       let hostFound = false;
 
@@ -1341,6 +1657,7 @@ class NetworkManager {
     this.isHost = true;
 
     this.peer.on('open', () => {
+      this.setupVoiceListeners();
       lobbyRoleTitle.textContent = 'HOST (CONFIGURING MISSION)';
       hostConfigRow.style.opacity = '1';
       hostConfigRow.style.pointerEvents = 'auto';
@@ -1348,6 +1665,7 @@ class NetworkManager {
       clientWaitMsg.style.display = 'none';
       this.lobbyRoster.set(this.peer.id, { name: this.playerName, team: myTeam });
       this.updateLobbyUI();
+      this.syncVoiceMeshCalls();
     });
 
     this.peer.on('connection', (conn) => {
@@ -1367,6 +1685,7 @@ class NetworkManager {
         this.lobbyRoster.delete(conn.peer);
         this.removePlayer(conn.peer);
         this.clients.delete(conn.peer);
+        cleanupRemoteVoice(conn.peer);
         this.broadcastLobbyState();
         this.updateLobbyUI();
       });
@@ -1407,6 +1726,7 @@ class NetworkManager {
       isMatchActive
     });
     this.updateLobbyUI();
+    this.syncVoiceMeshCalls();
   }
 
   updateLobbyUI() {
@@ -1414,10 +1734,11 @@ class NetworkManager {
     blueTeamListEl.innerHTML = '';
     for (const [id, p] of this.lobbyRoster.entries()) {
       const item = document.createElement('div');
-      item.textContent = `&bull; ${p.name}`;
+      item.textContent = `• ${p.name}`;
       if (p.team === 'RED') redTeamListEl.appendChild(item);
       else blueTeamListEl.appendChild(item);
     }
+    updateSpeakerTabs();
   }
 
   handleData(raw) {
@@ -1427,6 +1748,7 @@ class NetworkManager {
         this.lobbyRoster.set(data.id, { name: data.name, team: data.team });
         if (this.isHost) this.broadcastLobbyState();
         else this.updateLobbyUI();
+        this.syncVoiceMeshCalls();
       } else if (data.type === 'lobbySync') {
         this.lobbyRoster.clear();
         for (const k in data.roster) this.lobbyRoster.set(k, data.roster[k]);
@@ -1440,6 +1762,7 @@ class NetworkManager {
         modeSelect.value = gameMode;
         this.updateLobbyUI();
         updateScoreboard();
+        this.syncVoiceMeshCalls();
       } else if (data.type === 'startMatch') {
         matchDuration = data.matchDuration;
         timeRemaining = matchDuration;
@@ -1501,7 +1824,8 @@ function spawnPlayerToTeamBase() {
 }
 
 // Entry Modal Actions
-enterLobbyBtn.addEventListener('click', () => {
+enterLobbyBtn.addEventListener('click', async () => {
+  await initProximityMic();
   myPlayerName = document.getElementById('playerNameInput').value.trim() || myPlayerName;
   currentRoomCode = document.getElementById('roomCodeInput').value.trim() || 'SECTOR-7';
   entryModal.style.display = 'none';
@@ -1510,7 +1834,8 @@ enterLobbyBtn.addEventListener('click', () => {
   networkManager = new NetworkManager(currentRoomCode, myPlayerName);
 });
 
-soloLobbyBtn.addEventListener('click', () => {
+soloLobbyBtn.addEventListener('click', async () => {
+  await initProximityMic();
   isSoloMode = true;
   myPlayerName = document.getElementById('playerNameInput').value.trim() || myPlayerName;
   currentRoomCode = 'SOLO';
@@ -1518,11 +1843,12 @@ soloLobbyBtn.addEventListener('click', () => {
   lobbyModal.style.display = 'flex';
   lobbyRoomTitle.textContent = 'SOLO (OFFLINE)';
   lobbyRoleTitle.textContent = 'HOST (SINGLE PLAYER)';
-  redTeamListEl.innerHTML = `<div>&bull; ${myPlayerName} (YOU)</div>`;
-  blueTeamListEl.innerHTML = `<div>&bull; CYBER-BOT ALPHA</div><div>&bull; CYBER-BOT BETA</div>`;
+  redTeamListEl.innerHTML = `<div>• ${myPlayerName} (YOU)</div>`;
+  blueTeamListEl.innerHTML = `<div>• CYBER-BOT ALPHA</div><div>• CYBER-BOT BETA</div>`;
+  updateSpeakerTabs();
 });
 
-// Team Switching in Lobby (Disabled during active matches)
+// Team Switching in Lobby
 joinRedBtn.addEventListener('click', () => {
   if (isMatchActive) return;
   myTeam = 'RED';
@@ -1547,7 +1873,7 @@ joinBlueBtn.addEventListener('click', () => {
   }
 });
 
-// Host settings sync
+// Host settings
 timeSelect.addEventListener('change', () => {
   matchDuration = parseInt(timeSelect.value);
   timeRemaining = matchDuration;
@@ -1560,7 +1886,6 @@ modeSelect.addEventListener('change', () => {
   if (networkManager && networkManager.isHost) networkManager.broadcastLobbyState();
 });
 
-// Start Match
 startMatchBtn.addEventListener('click', () => {
   matchDuration = parseInt(timeSelect.value);
   timeRemaining = matchDuration;
@@ -1576,6 +1901,7 @@ startMatchBtn.addEventListener('click', () => {
 });
 
 function startActiveGame() {
+  getOrCreateAudioContext();
   lobbyModal.style.display = 'none';
   respawnModal.style.display = 'none';
   endGameModal.style.display = 'none';
@@ -1590,7 +1916,6 @@ function startActiveGame() {
   if (!isTouchDevice) controls.lock();
 }
 
-// Return to Lobby from End Screen
 returnLobbyBtn.addEventListener('click', () => {
   endGameModal.style.display = 'none';
   lobbyModal.style.display = 'flex';
@@ -1608,7 +1933,6 @@ const REGEN_RATE = 10;
 
 function takeDamage(amount, attackerName = null, attackerTeam = null, attackerId = null) {
   if (!isMatchActive || health <= 0) return;
-  // Prevent friendly fire
   if (attackerTeam && attackerTeam === myTeam) return;
 
   health = Math.max(0, health - amount);
@@ -1645,7 +1969,6 @@ function killNotice(killer, victim) {
   setTimeout(() => item.remove(), 4000);
 }
 
-// Death & Respawn Sequence with Loadout selection
 let respawnCountdown = 3;
 let respawnInterval = null;
 
@@ -1672,7 +1995,6 @@ function triggerRespawnSequence() {
   }, 1000);
 }
 
-// End Game
 function finishMatch() {
   isMatchActive = false;
   if (controls.isLocked) controls.unlock();
@@ -1718,7 +2040,6 @@ function tryJump() {
   }
 }
 
-// NOTE: Key 1-4 switching during match is disabled; weapon is locked to selected loadout
 document.addEventListener('keydown', (e) => {
   if (!isMatchActive) return;
   switch (e.code) {
@@ -1982,7 +2303,7 @@ function animate() {
   const delta = Math.min(clock.getDelta(), 0.1);
   clockElapsed += delta;
 
-  // Match Timer Countdown (Host ticks & syncs; solo ticks locally)
+  // Match Timer
   if (isMatchActive) {
     timeRemaining -= delta;
     updateScoreboard();
@@ -2007,12 +2328,69 @@ function animate() {
     holoGemMesh.rotation.y += delta * 1.2;
   }
 
-  // Remote Players smooth position lerp & name orientation
+  // Update Remote Players
   remotePlayers.forEach((mesh) => {
     mesh.position.lerp(mesh.userData.targetPos, 0.2);
     mesh.rotation.y = THREE.MathUtils.lerp(mesh.rotation.y, mesh.userData.targetRotY, 0.2);
     mesh.userData.nameTag.lookAt(camera.position);
   });
+
+  // ================= Update Web Audio Spatial Listener & Proximity Panners =================
+  if (voiceAudioCtx) {
+    const p = camera.position;
+    const fwd = new THREE.Vector3();
+    camera.getWorldDirection(fwd);
+    const up = camera.up;
+
+    // Update Listener
+    if (voiceAudioCtx.listener.positionX) {
+      voiceAudioCtx.listener.positionX.value = p.x;
+      voiceAudioCtx.listener.positionY.value = p.y;
+      voiceAudioCtx.listener.positionZ.value = p.z;
+      voiceAudioCtx.listener.forwardX.value = fwd.x;
+      voiceAudioCtx.listener.forwardY.value = fwd.y;
+      voiceAudioCtx.listener.forwardZ.value = fwd.z;
+      voiceAudioCtx.listener.upX.value = up.x;
+      voiceAudioCtx.listener.upY.value = up.y;
+      voiceAudioCtx.listener.upZ.value = up.z;
+    } else if (voiceAudioCtx.listener.setPosition) {
+      voiceAudioCtx.listener.setPosition(p.x, p.y, p.z);
+      voiceAudioCtx.listener.setOrientation(fwd.x, fwd.y, fwd.z, up.x, up.y, up.z);
+    }
+
+    // Update each remote operative's 3D panner position & distance gain
+    remoteVoices.forEach((voice, peerId) => {
+      const playerMesh = remotePlayers.get(peerId);
+
+      if (!isMatchActive || !playerMesh) {
+        // Everyone in lobby is in briefing range
+        voice.gain.gain.value = 0.9;
+        return;
+      }
+
+      const targetPos = playerMesh.position;
+      const dist = camera.position.distanceTo(targetPos);
+
+      // Distance Cutoff & Attenuation
+      if (dist > MAX_PROXIMITY_DIST) {
+        voice.gain.gain.value = 0; // completely cut off outside 55m
+      } else if (dist <= MIN_PROXIMITY_DIST) {
+        voice.gain.gain.value = 1.0;
+      } else {
+        const factor = 1 - (dist - MIN_PROXIMITY_DIST) / (MAX_PROXIMITY_DIST - MIN_PROXIMITY_DIST);
+        voice.gain.gain.value = Math.max(0, Math.min(1, factor * factor));
+      }
+
+      // Spatial orientation
+      if (voice.panner.positionX) {
+        voice.panner.positionX.value = targetPos.x;
+        voice.panner.positionY.value = targetPos.y + 1.6;
+        voice.panner.positionZ.value = targetPos.z;
+      } else if (voice.panner.setPosition) {
+        voice.panner.setPosition(targetPos.x, targetPos.y + 1.6, targetPos.z);
+      }
+    });
+  }
 
   if (fireTimer > 0) fireTimer -= delta;
   if (isMouseDown) tryShoot();
@@ -2119,7 +2497,6 @@ function animate() {
     let hit = false;
     if (b.userData.isLocal) {
       for (const [peerId, rPlayer] of remotePlayers.entries()) {
-        // Prevent friendly fire
         if (rPlayer.userData.team === myTeam) continue;
 
         const playerCenter = rPlayer.position.clone().add(new THREE.Vector3(0, 1.0, 0));
@@ -2155,6 +2532,7 @@ function animate() {
 
 updateScoreboard();
 updateWeaponHud();
+updateMicHudDisplay();
 animate();
 
 window.addEventListener('resize', () => {
