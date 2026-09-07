@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Cyberpunk City FPS - Dense Urban District</title>
+<title>Cyberpunk City FPS - Red vs Blue Urban Warfare</title>
 <!-- PeerJS for WebRTC Mesh / P2P Multiplayer -->
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
@@ -14,6 +15,7 @@
   }
   canvas { display: block; }
 
+  /* Crosshair */
   #crosshair {
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
     width: 24px; height: 24px; pointer-events: none; z-index: 10;
@@ -32,14 +34,13 @@
     transition: opacity 0.15s;
   }
 
-  /* Scope Overlay UI */
+  /* Scopes */
   #scopeOverlay {
     position: fixed; inset: 0; pointer-events: none; z-index: 12;
     opacity: 0; transition: opacity 0.15s ease-out;
   }
   #scopeOverlay.active { opacity: 1; }
 
-  /* Sniper Scope Overlay */
   .scope-sniper {
     background: radial-gradient(circle at center, transparent 32%, rgba(0,0,0,0.95) 35%, #000 60%);
     box-shadow: inset 0 0 100px #000;
@@ -61,7 +62,6 @@
     text-shadow: 0 0 4px #00ff88;
   }
 
-  /* Red-Dot Scope Overlay for AR & SMG */
   .scope-reddot {
     background: radial-gradient(circle at center, transparent 55%, rgba(0, 0, 0, 0.4) 85%, rgba(0,0,0,0.8) 100%);
   }
@@ -76,16 +76,33 @@
     box-shadow: 0 0 8px #ff2bd6, 0 0 12px #ff2bd6;
   }
 
-  #hud {
+  /* HUD */
+  #hud-top-left {
     position: fixed; top: 16px; left: 16px; color: #00e5ff; z-index: 10;
-    text-shadow: 0 0 8px #00e5ff; font-size: 14px; line-height: 1.5;
+    text-shadow: 0 0 8px #00e5ff; font-size: 13px; line-height: 1.5;
     background: rgba(10, 15, 30, 0.85); padding: 8px 14px; border: 1px solid rgba(0, 229, 255, 0.5);
     border-radius: 4px; backdrop-filter: blur(4px);
   }
-  #mode-badge {
-    position: fixed; top: 16px; right: 16px; color: #ffdd44; z-index: 10;
-    text-shadow: 0 0 8px #ffdd44; font-size: 13px; text-align: right;
-    background: rgba(10, 15, 30, 0.85); padding: 8px 14px; border: 1px solid rgba(255, 221, 68, 0.5);
+  #match-scoreboard {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 14px; z-index: 10;
+    background: rgba(8, 12, 24, 0.9); padding: 8px 24px; border-radius: 6px;
+    border: 1px solid #334466; box-shadow: 0 0 20px rgba(0,0,0,0.8);
+    backdrop-filter: blur(6px);
+  }
+  .team-score-badge {
+    font-size: 18px; font-weight: bold; display: flex; align-items: center; gap: 8px;
+  }
+  .score-red { color: #ff3355; text-shadow: 0 0 8px #ff3355; }
+  .score-blue { color: #00e5ff; text-shadow: 0 0 8px #00e5ff; }
+  #timer-badge {
+    font-size: 22px; font-weight: bold; color: #ffdd44; text-shadow: 0 0 10px #ffdd44;
+    padding: 0 10px; min-width: 75px; text-align: center;
+  }
+  #hud-top-right {
+    position: fixed; top: 16px; right: 16px; color: #aaccff; z-index: 10;
+    text-shadow: 0 0 8px #00e5ff; font-size: 13px; text-align: right;
+    background: rgba(10, 15, 30, 0.85); padding: 8px 14px; border: 1px solid rgba(0, 229, 255, 0.5);
     border-radius: 4px; backdrop-filter: blur(4px);
   }
 
@@ -134,53 +151,96 @@
 
   #weaponBar {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-    display: flex; gap: 10px; z-index: 10;
+    display: flex; gap: 8px; z-index: 10;
   }
   .slot {
-    width: 48px; height: 48px; background: rgba(10, 15, 30, 0.8); border: 2px solid #00e5ff55;
-    color: #fff; display: flex; align-items: center; justify-content: center; text-align: center;
-    font-size: 11px; text-shadow: 0 0 4px #000; cursor: pointer; transition: all 0.2s;
+    width: 52px; height: 50px; background: rgba(10, 15, 30, 0.7); border: 2px solid #00e5ff33;
+    color: #667788; display: flex; align-items: center; justify-content: center; text-align: center;
+    font-size: 11px; text-shadow: 0 0 4px #000; border-radius: 4px; pointer-events: none;
     backdrop-filter: blur(4px);
   }
-  .slot.active { border-color: #ff2bd6; background: rgba(255, 43, 214, 0.35); box-shadow: 0 0 12px #ff2bd6; transform: translateY(-3px); }
+  .slot.active { border-color: #00ff88; background: rgba(0, 255, 136, 0.25); color:#fff; box-shadow: 0 0 12px #00ff88; transform: translateY(-3px); }
 
-  #blocker {
-    position: fixed; inset: 0; background: rgba(6, 8, 16, 0.9);
-    display: flex; align-items: center; justify-content: center; z-index: 20;
-    color: #fff; text-align: center; backdrop-filter: blur(8px);
+  /* OVERLAYS & MODALS */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(6, 8, 16, 0.94);
+    display: flex; align-items: center; justify-content: center; z-index: 30;
+    color: #fff; text-align: center; backdrop-filter: blur(10px);
   }
-  #blocker .panel {
+  .panel {
     background: rgba(12, 17, 32, 0.95); padding: 26px 36px; border: 2px solid #00e5ff;
-    box-shadow: 0 0 35px rgba(0, 229, 255, 0.4); max-width: 580px; width: 90%; border-radius: 8px;
+    box-shadow: 0 0 35px rgba(0, 229, 255, 0.4); max-width: 780px; width: 92%; border-radius: 8px;
+    max-height: 90vh; overflow-y: auto;
   }
-  #blocker h1 { margin: 0 0 12px 0; color: #00e5ff; text-shadow: 0 0 12px #00e5ff; letter-spacing: 3px; font-size: 24px; }
-  #blocker p { margin: 6px 0; color: #ccd5e0; font-size: 13px; line-height: 1.5; }
-  #blocker .accent { color: #ff2bd6; font-weight: bold; }
+  h1 { margin: 0 0 12px 0; color: #00e5ff; text-shadow: 0 0 12px #00e5ff; letter-spacing: 3px; font-size: 24px; }
+  h2 { margin: 0 0 14px 0; font-size: 18px; letter-spacing: 2px; }
 
-  /* Multiplayer Form Controls */
-  .mp-form {
-    margin: 16px 0; display: flex; flex-direction: column; gap: 10px; align-items: center;
+  .mp-row { display: flex; gap: 10px; width: 100%; justify-content: center; margin: 12px 0; }
+  .mp-input, select.mp-input {
+    background: #0b0f19; border: 1px solid #00e5ff; color: #00e5ff;
+    padding: 10px 14px; font-family: inherit; font-size: 13px; border-radius: 4px;
+    outline: none; box-sizing: border-box;
   }
-  .mp-row { display: flex; gap: 8px; width: 100%; max-width: 380px; }
-  .mp-input {
-    flex: 1; background: #0b0f19; border: 1px solid #00e5ff; color: #00e5ff;
-    padding: 9px 12px; font-family: inherit; font-size: 13px; border-radius: 4px;
-    outline: none; text-transform: uppercase;
-  }
-  .mp-input::placeholder { color: #557799; text-transform: none; }
+  .mp-input::placeholder { color: #557799; }
+  
   .btn-play {
-    background: linear-gradient(135deg, #ff2bd6, #9b1fe8); border: none;
-    color: #fff; font-weight: bold; font-family: inherit; padding: 12px 30px;
+    background: linear-gradient(135deg, #00e5ff, #0077ff); border: none;
+    color: #000; font-weight: bold; font-family: inherit; padding: 12px 30px;
     font-size: 15px; border-radius: 4px; cursor: pointer; letter-spacing: 1.5px;
-    box-shadow: 0 0 15px rgba(255, 43, 214, 0.6); transition: all 0.2s;
+    box-shadow: 0 0 15px rgba(0, 229, 255, 0.6); transition: all 0.2s;
   }
-  .btn-play:hover { transform: scale(1.04); box-shadow: 0 0 22px rgba(255, 43, 214, 0.9); }
+  .btn-play:hover { transform: scale(1.03); box-shadow: 0 0 25px rgba(0, 229, 255, 0.9); }
   .btn-secondary {
-    background: rgba(0, 229, 255, 0.15); border: 1px solid #00e5ff; color: #00e5ff;
-    padding: 8px 16px; font-family: inherit; font-size: 12px; border-radius: 4px;
+    background: rgba(0, 229, 255, 0.12); border: 1px solid #00e5ff; color: #00e5ff;
+    padding: 9px 18px; font-family: inherit; font-size: 13px; border-radius: 4px;
     cursor: pointer; transition: all 0.2s;
   }
   .btn-secondary:hover { background: rgba(0, 229, 255, 0.35); }
+
+  /* Lobby Specific UI */
+  .lobby-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; text-align: left;
+  }
+  .team-card {
+    padding: 14px; border-radius: 6px; background: rgba(8, 12, 22, 0.85); min-height: 140px;
+  }
+  .team-card.red { border: 2px solid #ff3355; box-shadow: inset 0 0 15px rgba(255, 51, 85, 0.2); }
+  .team-card.blue { border: 2px solid #00e5ff; box-shadow: inset 0 0 15px rgba(0, 229, 255, 0.2); }
+  .team-title { font-weight: bold; font-size: 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .team-title.red { color: #ff3355; }
+  .team-title.blue { color: #00e5ff; }
+  .team-list { font-size: 12px; line-height: 1.8; color: #ccd5e0; max-height: 120px; overflow-y: auto; }
+  .btn-team-join {
+    padding: 5px 12px; font-size: 11px; border-radius: 3px; cursor: pointer; font-family: inherit; font-weight: bold; border: none;
+  }
+  .btn-team-join.red { background: #ff3355; color: #fff; }
+  .btn-team-join.blue { background: #00e5ff; color: #000; }
+
+  .loadout-picker {
+    display: flex; gap: 10px; justify-content: center; margin: 14px 0; flex-wrap: wrap;
+  }
+  .weapon-card {
+    border: 2px solid #334466; background: rgba(14, 20, 35, 0.9); padding: 10px 14px;
+    border-radius: 6px; cursor: pointer; transition: all 0.2s; min-width: 120px; text-align: center;
+  }
+  .weapon-card:hover { border-color: #00e5ff; transform: translateY(-2px); }
+  .weapon-card.selected { border-color: #ff2bd6; background: rgba(255, 43, 214, 0.2); box-shadow: 0 0 12px #ff2bd6; }
+  .weapon-card-title { font-weight: bold; font-size: 13px; color: #00e5ff; margin-bottom: 4px; }
+  .weapon-card-stats { font-size: 10px; color: #8899aa; }
+
+  /* Respawn Loadout Screen */
+  #respawnModal { display: none; z-index: 25; }
+
+  /* End Game Screen */
+  #endGameModal { display: none; z-index: 35; }
+  .stat-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 20px 0;
+  }
+  .stat-box {
+    background: rgba(14, 22, 40, 0.85); border: 1px solid #00e5ff55; padding: 14px; border-radius: 6px;
+  }
+  .stat-val { font-size: 28px; font-weight: bold; color: #00e5ff; text-shadow: 0 0 8px #00e5ff; margin-top: 4px; }
+  .stat-lbl { font-size: 11px; color: #8899aa; letter-spacing: 1px; }
 
   #hitmarker {
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -272,16 +332,27 @@
   <div>ROTATE DEVICE TO LANDSCAPE TO PLAY</div>
 </div>
 
-<div id="hud">
-  <span id="netStatus"></span><span id="netText">SOLO</span> &nbsp;|&nbsp;
-  SCORE: <span id="score">0</span> &nbsp;|&nbsp; DENSE DISTRICT // SECTOR 07
+<!-- HUD Elements -->
+<div id="hud-top-left">
+  <span id="netStatus"></span><span id="netText">LOBBY</span> &nbsp;|&nbsp;
+  TEAM: <span id="hudMyTeam" style="font-weight:bold;">RED</span>
 </div>
-<div id="mode-badge">MODE: <span id="modeName">NORMAL</span><br><span style="font-size:11px;color:#aaccff">[M] Mode &nbsp;|&nbsp; [H] Damage</span></div>
+
+<div id="match-scoreboard">
+  <div class="team-score-badge score-red">RED <span id="redScore">0</span></div>
+  <div id="timer-badge">10:00</div>
+  <div class="team-score-badge score-blue"><span id="blueScore">0</span> BLUE</div>
+</div>
+
+<div id="hud-top-right">
+  MODE: <span id="hudModeName" style="color:#ffdd44;">NORMAL</span><br>
+  K: <span id="hudKills">0</span> &nbsp;|&nbsp; D: <span id="hudDeaths">0</span> &nbsp;|&nbsp; KD: <span id="hudKD">0.00</span>
+</div>
+
 <div id="killfeed"></div>
 <div id="crosshair"></div>
 <div id="crosshair-center"></div>
 <div id="hitmarker"></div>
-
 <div id="scopeOverlay"></div>
 
 <div id="healthLabel">VITALS // INTEGRITY</div>
@@ -310,21 +381,152 @@
   <div id="jumpBtn">JUMP</div>
 </div>
 
-<div id="blocker">
+<!-- ENTRY MODAL -->
+<div id="entryModal" class="modal-overlay">
   <div class="panel">
-    <h1>CYBER DISTRICT // ELEVATED</h1>
-    <p><span class="accent">WASD / Joystick</span> Move &nbsp;|&nbsp; <span class="accent">Mouse / Drag</span> Aim &nbsp;|&nbsp; <span class="accent">Left Click</span> Shoot &nbsp;|&nbsp; <span class="accent">Right Click</span> Scope/Zoom</p>
+    <h1>CYBER DISTRICT // RED VS BLUE</h1>
+    <p style="color:#aaccff;">Urban Team Tactical FPS &bull; WebRTC Mesh</p>
+    <div class="mp-row">
+      <input type="text" id="playerNameInput" class="mp-input" placeholder="Operative Call-sign" maxlength="12" style="width: 220px;" />
+      <input type="text" id="roomCodeInput" class="mp-input" placeholder="Room Code (eg: 777)" maxlength="8" style="width: 160px;" />
+    </div>
+    <div class="mp-row" style="margin-top: 18px;">
+      <button class="btn-play" id="enterLobbyBtn">CONNECT TO LOBBY</button>
+      <button class="btn-secondary" id="soloLobbyBtn">SOLO BOT MATCH</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOBBY MODAL -->
+<div id="lobbyModal" class="modal-overlay" style="display: none;">
+  <div class="panel">
+    <h1>TACTICAL MISSION LOBBY</h1>
+    <p style="color:#8899aa; font-size:12px;">ROOM: <span id="lobbyRoomTitle" style="color:#00e5ff; font-weight:bold;">SECTOR-7</span> &bull; <span id="lobbyRoleTitle">WAITING FOR OPERATIVES</span></p>
     
-    <div class="mp-form">
-      <div class="mp-row">
-        <input type="text" id="playerNameInput" class="mp-input" placeholder="Operative Call-sign" maxlength="12" />
-        <input type="text" id="roomCodeInput" class="mp-input" placeholder="Room Code (eg: 777)" maxlength="8" />
+    <!-- Host Configuration Controls (Editable by Host Only) -->
+    <div id="hostConfigRow" class="mp-row" style="background: rgba(10,15,25,0.7); padding: 10px; border-radius: 4px; border: 1px solid #334466;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:12px; color:#ffdd44;">MATCH TIME:</span>
+        <select id="timeSelect" class="mp-input" style="padding:6px 10px;">
+          <option value="300">5 Mins</option>
+          <option value="600" selected>10 Mins</option>
+          <option value="900">15 Mins</option>
+          <option value="1200">20 Mins</option>
+        </select>
       </div>
-      <button class="btn-play" id="startBtn">CONNECT & PLAY</button>
-      <button class="btn-secondary" id="soloBtn">PLAY SOLO OFFLINE</button>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:12px; color:#ffdd44;">GAME MODE:</span>
+        <select id="modeSelect" class="mp-input" style="padding:6px 10px;">
+          <option value="NORMAL">NORMAL</option>
+          <option value="NOAMMO">NO AMMO LIMIT (∞)</option>
+          <option value="SPEED">HYPER SPEED (2x)</option>
+        </select>
+      </div>
     </div>
 
-    <p style="font-size: 11px; color:#789;">Multiplayer connects automatically to fellow operatives with matching room codes.</p>
+    <!-- Red vs Blue Team Grid -->
+    <div class="lobby-grid">
+      <div class="team-card red">
+        <div class="team-title red">
+          <span>RED TEAM</span>
+          <button class="btn-team-join red" id="joinRedBtn">JOIN RED</button>
+        </div>
+        <div class="team-list" id="redTeamList"></div>
+      </div>
+      <div class="team-card blue">
+        <div class="team-title blue">
+          <span>BLUE TEAM</span>
+          <button class="btn-team-join blue" id="joinBlueBtn">JOIN BLUE</button>
+        </div>
+        <div class="team-list" id="blueTeamList"></div>
+      </div>
+    </div>
+
+    <!-- Starting Loadout Selection -->
+    <div style="margin-top: 10px;">
+      <div style="font-size: 12px; color: #ff2bd6; font-weight: bold; letter-spacing: 1px;">SELECT STARTING LOADOUT (LOCKED DURING LIFE):</div>
+      <div class="loadout-picker" id="lobbyLoadoutPicker">
+        <div class="weapon-card selected" data-widx="0">
+          <div class="weapon-card-title">PULSE AR</div>
+          <div class="weapon-card-stats">DMG: 24 &bull; 30 RNDS</div>
+        </div>
+        <div class="weapon-card" data-widx="1">
+          <div class="weapon-card-title">VECTOR SMG</div>
+          <div class="weapon-card-stats">DMG: 14 &bull; FAST ROF</div>
+        </div>
+        <div class="weapon-card" data-widx="2">
+          <div class="weapon-card-title">SHOTGUN</div>
+          <div class="weapon-card-stats">DMG: 16x8 &bull; CLOSE</div>
+        </div>
+        <div class="weapon-card" data-widx="3">
+          <div class="weapon-card-title">RAIL SNIPER</div>
+          <div class="weapon-card-stats">DMG: 85 &bull; SCOPE</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mp-row" style="margin-top: 16px;">
+      <button class="btn-play" id="startMatchBtn">LAUNCH MATCH</button>
+    </div>
+    <div id="clientWaitMsg" style="display:none; color:#ffdd44; font-size:12px; margin-top:8px;">AWAITING HOST TO LAUNCH MATCH...</div>
+  </div>
+</div>
+
+<!-- RESPAWN LOADOUT MODAL -->
+<div id="respawnModal" class="modal-overlay">
+  <div class="panel" style="max-width: 580px;">
+    <h1 style="color:#ff3355;">OPERATIVE ELIMINATED</h1>
+    <p style="color:#ccd5e0;">SYSTEM REBOOTING IN <span id="respawnTimerNum" style="color:#00e5ff; font-weight:bold; font-size:18px;">3</span>s</p>
+    <p style="font-size:12px; color:#8899aa;">MODIFY LOADOUT FOR NEXT DEPLOYMENT:</p>
+    
+    <div class="loadout-picker" id="respawnLoadoutPicker">
+      <div class="weapon-card" data-widx="0">
+        <div class="weapon-card-title">PULSE AR</div>
+        <div class="weapon-card-stats">DMG: 24 &bull; 30 RNDS</div>
+      </div>
+      <div class="weapon-card" data-widx="1">
+        <div class="weapon-card-title">VECTOR SMG</div>
+        <div class="weapon-card-stats">DMG: 14 &bull; FAST ROF</div>
+      </div>
+      <div class="weapon-card" data-widx="2">
+        <div class="weapon-card-title">SHOTGUN</div>
+        <div class="weapon-card-stats">DMG: 16x8 &bull; CLOSE</div>
+      </div>
+      <div class="weapon-card" data-widx="3">
+        <div class="weapon-card-title">RAIL SNIPER</div>
+        <div class="weapon-card-stats">DMG: 85 &bull; SCOPE</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MATCH END SUMMARY MODAL -->
+<div id="endGameModal" class="modal-overlay">
+  <div class="panel">
+    <h1 id="endGameTitle" style="font-size: 32px; letter-spacing: 4px;">VICTORY</h1>
+    <h2 id="endGameSub">RED TEAM DOMINATES THE SECTOR</h2>
+    
+    <div style="font-size: 24px; font-weight:bold; margin: 16px 0;">
+      <span class="score-red">RED <span id="endRedScore">0</span></span> &nbsp;&mdash;&nbsp; 
+      <span class="score-blue"><span id="endBlueScore">0</span> BLUE</span>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="stat-lbl">PERSONAL KILLS</div>
+        <div class="stat-val" id="endKills">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-lbl">DEATHS</div>
+        <div class="stat-val" id="endDeaths">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-lbl">K/D RATIO</div>
+        <div class="stat-val" id="endKD">0.00</div>
+      </div>
+    </div>
+
+    <button class="btn-play" id="returnLobbyBtn">RETURN TO LOBBY</button>
   </div>
 </div>
 
@@ -341,10 +543,9 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-// Prevent context menu on right click for Aiming Down Sights
 window.addEventListener('contextmenu', e => e.preventDefault());
 
-// ================= Procedural Canvas Texture Generators =================
+// ================= Procedural Texture Generators =================
 function createHazardCrateTexture(text = 'SUPPLY // 07', baseColor = '#5c4322', accentColor = '#ffbb00') {
   const canvas = document.createElement('canvas');
   canvas.width = 512; canvas.height = 512;
@@ -378,13 +579,34 @@ function createHazardCrateTexture(text = 'SUPPLY // 07', baseColor = '#5c4322', 
   return texture;
 }
 
+function createContainerTexture(label = 'MAERSK-CYBER', colorHex = '#1a3b5c', accentHex = '#00e5ff') {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512; canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = colorHex; ctx.fillRect(0, 0, 512, 256);
+
+  for (let x = 0; x < 512; x += 16) {
+    ctx.fillStyle = '#0a101d'; ctx.fillRect(x, 0, 4, 256);
+    ctx.fillStyle = '#3a506d'; ctx.fillRect(x + 4, 0, 4, 256);
+  }
+  ctx.fillStyle = '#05070d';
+  ctx.fillRect(0, 0, 512, 16); ctx.fillRect(0, 240, 512, 16);
+  ctx.fillRect(0, 0, 16, 256); ctx.fillRect(496, 0, 16, 256);
+
+  ctx.fillStyle = accentHex;
+  ctx.font = 'bold 36px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText(label, 256, 140);
+
+  return new THREE.CanvasTexture(canvas);
+}
+
 function createCyberRoadTexture(accentColorHex, asphaltColor = '#1d212b') {
   const canvas = document.createElement('canvas');
   canvas.width = 512; canvas.height = 512;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = asphaltColor; ctx.fillRect(0, 0, 512, 512);
 
-  // High-tech asphalt grid pattern
   ctx.strokeStyle = '#292f3d'; ctx.lineWidth = 2;
   for (let x = 0; x < 512; x += 32) {
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 512); ctx.stroke();
@@ -393,7 +615,6 @@ function createCyberRoadTexture(accentColorHex, asphaltColor = '#1d212b') {
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(512, y); ctx.stroke();
   }
 
-  // Glowing lane boundaries and dashes
   ctx.fillStyle = accentColorHex;
   ctx.fillRect(8, 0, 10, 512); ctx.fillRect(512 - 18, 0, 10, 512);
   for (let y = 20; y < 512; y += 80) {
@@ -442,22 +663,20 @@ function createNeonSignTexture(text, subtext, colorHex) {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#090c14'; ctx.fillRect(0, 0, 512, 256);
   ctx.strokeStyle = colorHex; ctx.lineWidth = 8; ctx.strokeRect(12, 12, 488, 232);
-  ctx.fillStyle = colorHex; ctx.font = 'bold 42px Courier New'; ctx.textAlign = 'center'; ctx.fillText(text, 256, 110);
+  ctx.fillStyle = colorHex; ctx.font = 'bold 40px Courier New'; ctx.textAlign = 'center'; ctx.fillText(text, 256, 110);
   ctx.fillStyle = '#ffffff'; ctx.font = 'bold 20px Courier New'; ctx.fillText(subtext, 256, 160);
   return new THREE.CanvasTexture(canvas);
 }
 
-// Pre-create shared materials
 const woodCrateTex = createHazardCrateTexture('CARGO // ALPHA', '#583f21', '#ffaa00');
 const bunkerCrateTex = createHazardCrateTexture('SECURITY PROTOCOL', '#22382c', '#00ff88');
-
 const texDarkSlate = createBuildingFacadeTexture('#121622', '#00e5ff', 0.6);
 const texDarkGold = createBuildingFacadeTexture('#1f1a10', '#ffcc00', 0.65);
 const texDarkMaroon = createBuildingFacadeTexture('#22121c', '#ff2bd6', 0.6);
 const texDarkForest = createBuildingFacadeTexture('#101c15', '#00ff88', 0.55);
 const texDarkObsidian = createBuildingFacadeTexture('#0f1118', '#00e5ff', 0.65);
 
-// ================= Scene setup =================
+// ================= Scene Setup =================
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111422);
 scene.fog = new THREE.FogExp2(0x111422, 0.007);
@@ -506,6 +725,8 @@ addNeonPoint(0xff2bd6, 68, 12, -35, 5.0, 90);
 addNeonPoint(0xffaa00, 62, 10, 45, 5.5, 90);
 addNeonPoint(0x00ff88, -42, 6, 20, 4.0, 75);
 addNeonPoint(0x00e5ff, 5, 12, 25, 4.5, 80);
+addNeonPoint(0xff0055, -28, 6, 48, 4.5, 60);
+addNeonPoint(0x00ffff, 10, 8, -56, 4.5, 65);
 
 // ================= Arena Bounds, Elevations & Continuous Terrain =================
 const HALF_W = 100;
@@ -516,14 +737,10 @@ function addCollider(x, y, z, w, h, d) {
   colliders.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, top: y + h / 2, bottom: y - h / 2 });
 }
 
-// Continuous, smooth road elevation system:
-// Northwest is mid-level (y ~ 0.0), Southwest drops into sunken industrial canyon (y ~ -5.5),
-// Northeast elevated reactor deck (y ~ +3.8), Southeast high-tech plaza (y ~ +5.2).
 function heightAt(x, z) {
-  const u = (x + HALF_W) / (HALF_W * 2); // 0 (west) to 1 (east)
-  const v = (z + HALF_D) / (HALF_D * 2); // 0 (north) to 1 (south)
+  const u = (x + HALF_W) / (HALF_W * 2);
+  const v = (z + HALF_D) / (HALF_D * 2);
 
-  // Bilinear elevation gradient base
   const yNW = 0.0;
   const ySW = -5.5;
   const yNE = 3.8;
@@ -533,12 +750,10 @@ function heightAt(x, z) {
   const botY = THREE.MathUtils.lerp(ySW, ySE, u);
   let baseH = THREE.MathUtils.lerp(topY, botY, v);
 
-  // Dynamic road undulations and natural slope accents
   const wave = Math.sin(x * 0.045) * 0.85 + Math.cos(z * 0.045) * 0.85;
   return baseH + wave;
 }
 
-// Generate continuous 3D road/ground terrain without any dark voids or gaps
 const terrainSegmentsX = 120;
 const terrainSegmentsZ = 100;
 const terrainGeo = new THREE.PlaneGeometry(HALF_W * 2 + 10, HALF_D * 2 + 10, terrainSegmentsX, terrainSegmentsZ);
@@ -563,7 +778,6 @@ const terrainMesh = new THREE.Mesh(terrainGeo, terrainMat);
 terrainMesh.receiveShadow = true;
 scene.add(terrainMesh);
 
-// Perimeter Security Walls
 function addPerimeterWall(w, h, d, x, y, z) {
   const wallMat = new THREE.MeshStandardMaterial({ color: 0x141824, roughness: 0.85, metalness: 0.2 });
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
@@ -581,7 +795,6 @@ addPerimeterWall(HALF_W * 2 + 8, 38, 2, 0, 10, HALF_D + 1);
 addPerimeterWall(2, 38, HALF_D * 2 + 8, -HALF_W - 1, 10, 0);
 addPerimeterWall(2, 38, HALF_D * 2 + 8, HALF_W + 1, 10, 0);
 
-// Building & Foundation Builders
 function addFoundation(w, d, x, z, bottomH = -18) {
   const midY = (heightAt(x, z) + bottomH) / 2;
   const skirtH = Math.abs(heightAt(x, z) - bottomH) + 2;
@@ -602,7 +815,6 @@ function addDenseBuilding(w, h, d, x, z, mat, roofTrimColor = 0x00e5ff) {
   addCollider(x, baseY + h / 2, z, w, h, d);
   addFoundation(w + 0.2, d + 0.2, x, z, baseY - 20);
 
-  // Roof illuminated rim
   const trim = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, 0.4, d + 0.2), new THREE.MeshBasicMaterial({ color: roofTrimColor }));
   trim.position.set(x, baseY + h + 0.2, z);
   scene.add(trim);
@@ -616,40 +828,31 @@ function addNeonBillboard(x, y, z, w, h, text, subtext, colorHex, rotY = 0) {
   scene.add(mesh);
 }
 
-// ================= Map Buildings (Per Layout) =================
-
-// 1. WEST DISTRICT BUILDINGS (Red strip on the left) - TALL MEGASTRUCTURES
+// Buildings & City Landmarks
 const westBldgMat = new THREE.MeshStandardMaterial({ map: texDarkSlate, roughness: 0.35, metalness: 0.6 });
 addDenseBuilding(28, 42, 54, -84, -48, westBldgMat, 0x00e5ff);
-addNeonBillboard(-69.5, heightAt(-69.5, -48) + 16, -48, 22, 6, 'NIGHT CORP // 07', 'TACTICAL DEFENSE DIVISION', '#00e5ff', -Math.PI / 2);
+addNeonBillboard(-69.5, heightAt(-69.5, -48) + 16, -48, 22, 6, 'NIGHT CORP // 07', 'RED FORWARD BASE', '#ff3355', -Math.PI / 2);
 
 addDenseBuilding(28, 38, 54, -84, 12, new THREE.MeshStandardMaterial({ map: texDarkForest, roughness: 0.4 }), 0x00ff88);
 addDenseBuilding(28, 45, 42, -84, 60, new THREE.MeshStandardMaterial({ map: texDarkObsidian, roughness: 0.3 }), 0x00e5ff);
 
-// 2. NORTHWEST TECH COMPLEX (New Yellow Building)
 const northYellowMat = new THREE.MeshStandardMaterial({ map: texDarkGold, roughness: 0.4, metalness: 0.6 });
 addDenseBuilding(38, 32, 40, -32, -54, northYellowMat, 0xffdd00);
 addNeonBillboard(-32, heightAt(-32, -33.8) + 12, -33.8, 22, 5, 'NEXUS RESEARCH', 'CYBERNETIC BIO-SYS // LABS', '#ffdd00', 0);
-addNeonBillboard(-12.8, heightAt(-12.8, -54) + 14, -54, 20, 5, 'AI CORE // 9', 'UNAUTHORIZED ACCESS FORBIDDEN', '#00e5ff', Math.PI / 2);
 
-// 3. CENTER COMPLEX (Middle Red Building) - HIGH TRANSIT HUB
 const centerMat = new THREE.MeshStandardMaterial({ map: texDarkMaroon, roughness: 0.35, metalness: 0.55 });
 addDenseBuilding(42, 24, 68, 5, 20, centerMat, 0xff2bd6);
-addNeonBillboard(5, heightAt(5, -14.2) + 10, -14.2, 26, 5.5, 'SECTOR 07 TRANSIT', 'METRO TERMINAL // CENTRAL', '#ff2bd6', 0);
-addNeonBillboard(-16.2, heightAt(-16.2, 20) + 9, 20, 24, 5, 'ARASAKA TRANSIT', 'HIGH-SPEED FREIGHT', '#00e5ff', -Math.PI / 2);
+addNeonBillboard(5, heightAt(5, -14.2) + 10, -14.2, 26, 5.5, 'SECTOR 07 TRANSIT', 'CENTRAL TACTICAL ARENA', '#ff2bd6', 0);
 
-// 4. SOUTHEAST MEGACORP COMPLEX (New Yellow Building)
 const southeastMat = new THREE.MeshStandardMaterial({ map: texDarkGold, roughness: 0.35, metalness: 0.65 });
 addDenseBuilding(40, 30, 48, 62, 46, southeastMat, 0xffaa00);
-addNeonBillboard(41.8, heightAt(41.8, 46) + 11, 46, 24, 5, 'KENDACHI DATA', 'QUANTUM REPOSITORY // SECTOR 07', '#ffaa00', -Math.PI / 2);
-addNeonBillboard(62, heightAt(62, 21.8) + 10, 21.8, 20, 4.5, 'CORE SHIELD', 'HIGH VOLTAGE // DANGER', '#00ff88', 0);
+addNeonBillboard(41.8, heightAt(41.8, 46) + 11, 46, 24, 5, 'KENDACHI DATA', 'BLUE FORWARD BASE', '#00e5ff', -Math.PI / 2);
 
-// 5. NORTHEAST ARASAKA SKYSCRAPER (Top-Right Red Building)
 const northeastMat = new THREE.MeshStandardMaterial({ map: texDarkMaroon, roughness: 0.35, metalness: 0.7 });
 addDenseBuilding(34, 36, 54, 80, -38, northeastMat, 0xff2bd6);
-addNeonBillboard(62.8, heightAt(62.8, -38) + 14, -38, 22, 5.5, 'ARASAKA HQ', 'ORBITAL SURVEILLANCE', '#ff2bd6', -Math.PI / 2);
+addNeonBillboard(62.8, heightAt(62.8, -38) + 14, -38, 22, 5.5, 'ARASAKA HQ', 'ORBITAL SURVEILLANCE', '#00e5ff', -Math.PI / 2);
 
-// 6. CYLINDRICAL REACTOR SPIRE (Top-Right Red Oval/Tower)
+// Reactor Tower
 {
   const cx = 45, cz = -50, radius = 17, towerH = 28;
   const baseY = heightAt(cx, cz);
@@ -663,7 +866,6 @@ addNeonBillboard(62.8, heightAt(62.8, -38) + 14, -38, 22, 5.5, 'ARASAKA HQ', 'OR
   addCollider(cx, baseY + towerH / 2, cz, radius * 2, towerH, radius * 2);
   addFoundation(radius * 2 + 1, radius * 2 + 1, cx, cz, baseY - 20);
 
-  // Glowing reactor rings
   for (let r = 1; r <= 3; r++) {
     const ring = new THREE.Mesh(new THREE.TorusGeometry(radius + 0.3, 0.25, 8, 36), new THREE.MeshBasicMaterial({ color: 0x00e5ff }));
     ring.rotation.x = Math.PI / 2;
@@ -672,11 +874,156 @@ addNeonBillboard(62.8, heightAt(62.8, -38) + 14, -38, 22, 5.5, 'ARASAKA HQ', 'OR
   }
 }
 
-// ================= Tactical Cover Spots & Bunkers (Green Areas) =================
-const barrierMat = new THREE.MeshStandardMaterial({ color: 0x222a38, roughness: 0.5, metalness: 0.5 });
+// Water Towers, Stalls, Containers & Monuments
+function addWaterCoolantTower(x, z, radius = 4.5, tankH = 6.5, legH = 9, accentHex = 0x00e5ff) {
+  const baseY = heightAt(x, z);
+  const group = new THREE.Group();
+  group.position.set(x, baseY, z);
+
+  const metalMat = new THREE.MeshStandardMaterial({ color: 0x2b3445, metalness: 0.85, roughness: 0.3 });
+  const darkLegMat = new THREE.MeshStandardMaterial({ color: 0x181e2b, metalness: 0.9, roughness: 0.4 });
+
+  const legOffset = radius * 0.75;
+  const legGeo = new THREE.CylinderGeometry(0.35, 0.45, legH, 8);
+  const legPositions = [[-legOffset, -legOffset], [legOffset, -legOffset], [-legOffset, legOffset], [legOffset, legOffset]];
+
+  legPositions.forEach(([lx, lz]) => {
+    const leg = new THREE.Mesh(legGeo, darkLegMat);
+    leg.position.set(lx, legH / 2, lz);
+    leg.castShadow = true;
+    group.add(leg);
+    addCollider(x + lx, baseY + legH / 2, z + lz, 0.9, legH, 0.9);
+  });
+
+  const ringPlatform = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.1, radius * 1.1, 0.5, 16), metalMat);
+  ringPlatform.position.y = legH;
+  group.add(ringPlatform);
+  addCollider(x, baseY + legH + 0.25, z, radius * 2.2, 0.5, radius * 2.2);
+
+  const tank = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, tankH, 24), metalMat);
+  tank.position.y = legH + tankH / 2 + 0.25;
+  tank.castShadow = true;
+  group.add(tank);
+
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(radius, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2), metalMat);
+  dome.position.y = legH + tankH + 0.25;
+  group.add(dome);
+
+  const glowRing = new THREE.Mesh(new THREE.TorusGeometry(radius + 0.15, 0.2, 8, 24), new THREE.MeshBasicMaterial({ color: accentHex }));
+  glowRing.rotation.x = Math.PI / 2;
+  glowRing.position.y = legH + tankH * 0.5;
+  group.add(glowRing);
+
+  addCollider(x, baseY + legH + tankH / 2, z, radius * 2, tankH, radius * 2);
+  addFoundation(radius * 2, radius * 2, x, z, baseY - 6);
+  scene.add(group);
+}
+
+function addCyberMarketStall(x, z, w, d, rotY, title, subtitle, neonColorHex) {
+  const baseY = heightAt(x, z);
+  const stallGroup = new THREE.Group();
+  stallGroup.position.set(x, baseY, z);
+  stallGroup.rotation.y = rotY;
+
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x141822, roughness: 0.7, metalness: 0.4 });
+  const woodCounterMat = new THREE.MeshStandardMaterial({ color: 0x422f1c, roughness: 0.6 });
+
+  const counterH = 1.2;
+  const baseBox = new THREE.Mesh(new THREE.BoxGeometry(w, counterH, d * 0.6), darkMat);
+  baseBox.position.set(0, counterH / 2, -d * 0.2);
+  stallGroup.add(baseBox);
+
+  const counterTop = new THREE.Mesh(new THREE.BoxGeometry(w + 0.3, 0.12, d * 0.65), woodCounterMat);
+  counterTop.position.set(0, counterH + 0.06, -d * 0.2);
+  stallGroup.add(counterTop);
+
+  const poleGeo = new THREE.CylinderGeometry(0.06, 0.06, 2.4, 8);
+  const p1 = new THREE.Mesh(poleGeo, darkMat); p1.position.set(-w / 2 + 0.15, 1.2, -d / 2 + 0.15);
+  const p2 = new THREE.Mesh(poleGeo, darkMat); p2.position.set(w / 2 - 0.15, 1.2, -d / 2 + 0.15);
+  const p3 = new THREE.Mesh(poleGeo, darkMat); p3.position.set(-w / 2 + 0.15, 1.2, d / 2 - 0.15);
+  const p4 = new THREE.Mesh(poleGeo, darkMat); p4.position.set(w / 2 - 0.15, 1.2, d / 2 - 0.15);
+  stallGroup.add(p1, p2, p3, p4);
+
+  const canopyMat = new THREE.MeshStandardMaterial({ color: 0x1a2130, roughness: 0.5 });
+  const canopy = new THREE.Mesh(new THREE.BoxGeometry(w + 0.6, 0.15, d + 0.6), canopyMat);
+  canopy.position.set(0, 2.5, 0); canopy.rotation.x = 0.15;
+  stallGroup.add(canopy);
+
+  const signMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(w * 0.8, 0.65),
+    new THREE.MeshBasicMaterial({ map: createNeonSignTexture(title, subtitle, neonColorHex), side: THREE.DoubleSide })
+  );
+  signMesh.position.set(0, 2.3, d / 2 + 0.1);
+  stallGroup.add(signMesh);
+
+  scene.add(stallGroup);
+  addCollider(x, baseY + 1.3, z, w + 0.4, 2.6, d + 0.4);
+  addFoundation(w + 0.2, d + 0.2, x, z, baseY - 6);
+}
+
+function addContainerStack(x, z, rotY = 0) {
+  const baseY = heightAt(x, z);
+  const group = new THREE.Group();
+  group.position.set(x, baseY, z); group.rotation.y = rotY;
+
+  const cMat1 = new THREE.MeshStandardMaterial({ map: createContainerTexture('ORBITAL // 01', '#1e3852', '#00e5ff'), roughness: 0.4, metalness: 0.6 });
+  const cMat2 = new THREE.MeshStandardMaterial({ map: createContainerTexture('DANGER // BIO', '#521e28', '#ff2bd6'), roughness: 0.4, metalness: 0.6 });
+  const cMat3 = new THREE.MeshStandardMaterial({ map: createContainerTexture('CARGO // 88', '#4d411d', '#ffcc00'), roughness: 0.4, metalness: 0.6 });
+
+  const cW = 8.0, cH = 3.0, cD = 3.2;
+  const c1 = new THREE.Mesh(new THREE.BoxGeometry(cW, cH, cD), cMat1); c1.position.set(0, cH / 2, -cD * 0.55);
+  const c2 = new THREE.Mesh(new THREE.BoxGeometry(cW, cH, cD), cMat2); c2.position.set(0, cH / 2, cD * 0.55);
+  const c3 = new THREE.Mesh(new THREE.BoxGeometry(cW, cH, cD), cMat3); c3.position.set(0.6, cH * 1.5, 0); c3.rotation.y = 0.12;
+  group.add(c1, c2, c3);
+
+  scene.add(group);
+  addCollider(x, baseY + cH, z, cW + 1, cH * 2, cD * 2.2);
+  addFoundation(cW + 1, cD * 2.2, x, z, baseY - 6);
+}
+
+let holoGemMesh = null;
+function addHoloPlaza(x, z) {
+  const baseY = heightAt(x, z);
+  const group = new THREE.Group();
+  group.position.set(x, baseY, z);
+
+  const baseMat = new THREE.MeshStandardMaterial({ color: 0x171d2b, roughness: 0.5, metalness: 0.5 });
+  const step1 = new THREE.Mesh(new THREE.CylinderGeometry(6.5, 7.0, 0.6, 8), baseMat); step1.position.y = 0.3;
+  const step2 = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.6, 0.6, 8), baseMat); step2.position.y = 0.8;
+  group.add(step1, step2);
+
+  const projRing = new THREE.Mesh(new THREE.TorusGeometry(2.4, 0.2, 8, 24), new THREE.MeshBasicMaterial({ color: 0x00e5ff }));
+  projRing.rotation.x = Math.PI / 2; projRing.position.y = 1.15;
+  group.add(projRing);
+
+  holoGemMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1.6, 0), new THREE.MeshBasicMaterial({ color: 0x00e5ff, wireframe: true }));
+  holoGemMesh.position.y = 3.6;
+  group.add(holoGemMesh);
+
+  scene.add(group);
+  addCollider(x, baseY + 0.6, z, 9.0, 1.2, 9.0);
+  addFoundation(9.5, 9.5, x, z, baseY - 6);
+}
+
+// Instantiate Fillers
+addDenseBuilding(18, 9, 22, -28, 48, new THREE.MeshStandardMaterial({ map: texDarkMaroon }), 0xff0055);
+addDenseBuilding(22, 8, 16, 8, -72, new THREE.MeshStandardMaterial({ map: texDarkSlate }), 0x00e5ff);
+addDenseBuilding(18, 8, 18, 48, 4, new THREE.MeshStandardMaterial({ map: texDarkGold }), 0xffaa00);
+
+addWaterCoolantTower(-52, 68, 4.2, 6.0, 8.0, 0x00ff88);
+addWaterCoolantTower(28, -72, 4.0, 6.5, 8.5, 0x00e5ff);
+addWaterCoolantTower(34, 72, 4.2, 6.0, 8.0, 0xff2bd6);
+
+addCyberMarketStall(-56, 24, 4.5, 2.8, Math.PI / 2, 'NEO TOKYO RAMEN', 'SYNTH-BROTH // SECTOR 07', '#ffaa00');
+addCyberMarketStall(-8, -36, 4.2, 2.6, 0, 'CYBERNETICS 24/7', 'NEURAL UPGRADES', '#00e5ff');
+addCyberMarketStall(28, 36, 4.2, 2.6, -Math.PI / 2, 'DOKI NOODLES', 'MIDNIGHT DUMPLINGS', '#00ff88');
+
+addContainerStack(10, 66, 0.2);
+addHoloPlaza(10, -56);
+
+// Covers
 const concreteCoverMat = new THREE.MeshStandardMaterial({ map: bunkerCrateTex, roughness: 0.6, metalness: 0.4 });
 const woodCoverMat = new THREE.MeshStandardMaterial({ map: woodCrateTex, roughness: 0.7, metalness: 0.3 });
-
 function addCoverObject(w, h, d, x, z, mat = woodCoverMat) {
   const y = heightAt(x, z);
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
@@ -687,39 +1034,33 @@ function addCoverObject(w, h, d, x, z, mat = woodCoverMat) {
   addFoundation(w + 0.1, d + 0.1, x, z, y - 6);
   return mesh;
 }
-
-// Green Cover Area 1 (Between West strip & Center Complex - Upper Checkpoint)
-// Creates tactical cover inside the narrowed western avenue
 addCoverObject(3.0, 1.6, 12.0, -32, 2, concreteCoverMat);
 addCoverObject(7.0, 1.5, 3.0, -36, 10, concreteCoverMat);
 addCoverObject(4.0, 1.4, 4.0, -26, 4, woodCoverMat);
-
-// Green Cover Area 2 (Between West strip & Center Complex - Lower Substation)
 addCoverObject(10.0, 1.6, 3.2, -48, 44, concreteCoverMat);
 addCoverObject(3.2, 1.6, 9.0, -42, 52, concreteCoverMat);
 addCoverObject(5.0, 1.4, 5.0, -54, 48, woodCoverMat);
-
-// Additional lane cover barriers to make FPS gunfights tactical
-// North narrow alley cover
 addCoverObject(7.0, 1.4, 2.5, -34, -26, woodCoverMat);
-addCoverObject(2.5, 1.4, 7.0, 12, -44, concreteCoverMat);
-
-// East canyon cover (between Center Complex & Southeast/Northeast bldgs)
 addCoverObject(3.0, 1.5, 8.0, 32, 18, concreteCoverMat);
 addCoverObject(7.0, 1.5, 3.0, 36, -10, woodCoverMat);
-addCoverObject(6.0, 1.4, 3.0, 58, -12, concreteCoverMat);
 addCoverObject(3.0, 1.5, 7.0, 34, 58, woodCoverMat);
 
-// Distant Skyline
-const backdropSkylineMat = new THREE.MeshStandardMaterial({ color: 0x0a0d16, map: createBuildingFacadeTexture('#0a0d16', '#00e5ff', 0.5) });
-for (let b = 0; b < 28; b++) {
-  const angle = (b / 28) * Math.PI * 2, dist = 110 + (b % 4) * 20;
-  const bgBldg = new THREE.Mesh(new THREE.BoxGeometry(20 + (b % 3) * 12, 60 + (b % 5) * 25, 20), backdropSkylineMat);
-  bgBldg.position.set(Math.cos(angle) * dist, 25, Math.sin(angle) * dist);
-  scene.add(bgBldg);
-}
+// ================= Weapons & Loadouts =================
+const WEAPONS = [
+  { key: 'AR',      name: 'ASSAULT RIFLE // PULSE', damage: 24, fireDelay: 0.12, mag: 30, reserve: 90,  reload: 1.6, bulletSpeed: 75, spread: 0.018, pellets: 1, life: 2.0, color: 0x333b4d, fov: 45, scopeType: 'REDDOT', recoilKick: 0.014, recoilSide: 0.008 },
+  { key: 'SMG',     name: 'SMG // VECTOR-X',         damage: 14, fireDelay: 0.08, mag: 25, reserve: 100, reload: 1.3, bulletSpeed: 70, spread: 0.032, pellets: 1, life: 1.5, color: 0x223c58, fov: 50, scopeType: 'REDDOT', recoilKick: 0.010, recoilSide: 0.013 },
+  { key: 'SHOTGUN', name: 'CYBER-SHOTGUN // SLAG',   damage: 16, fireDelay: 0.85, mag: 6,  reserve: 24,  reload: 2.2, bulletSpeed: 55, spread: 0.10,  pellets: 8, life: 0.6, color: 0x543220, fov: 60, scopeType: 'NONE', recoilKick: 0.045, recoilSide: 0.018 },
+  { key: 'SNIPER',  name: 'RAIL-SNIPER // APEX',     damage: 85, fireDelay: 1.4,  mag: 5,  reserve: 15,  reload: 2.8, bulletSpeed: 115, spread: 0.001, pellets: 1, life: 3.0, color: 0x1e222a, fov: 14, scopeType: 'SNIPER', recoilKick: 0.065, recoilSide: 0.006 },
+];
 
-// ================= View-Model & Weapons =================
+let selectedLoadoutIndex = 0; // Chosen weapon (locked during life)
+let currentWeaponIndex = 0;
+const ammoState = WEAPONS.map(w => ({ mag: w.mag, reserve: w.reserve }));
+let fireTimer = 0;
+let reloading = false;
+let reloadTimer = 0;
+let isAiming = false;
+
 const viewModelGroup = new THREE.Group();
 camera.add(viewModelGroup);
 scene.add(camera);
@@ -766,20 +1107,6 @@ function buildGunMesh(weapon) {
   }
 }
 
-const WEAPONS = [
-  { key: 'AR',      name: 'ASSAULT RIFLE // PULSE', damage: 24, fireDelay: 0.12, mag: 30, reserve: 90,  reload: 1.6, bulletSpeed: 75, spread: 0.018, pellets: 1, life: 2.0, color: 0x333b4d, fov: 45, scopeType: 'REDDOT', recoilKick: 0.014, recoilSide: 0.008 },
-  { key: 'SMG',     name: 'SMG // VECTOR-X',         damage: 14, fireDelay: 0.08, mag: 25, reserve: 100, reload: 1.3, bulletSpeed: 70, spread: 0.032, pellets: 1, life: 1.5, color: 0x223c58, fov: 50, scopeType: 'REDDOT', recoilKick: 0.010, recoilSide: 0.013 },
-  { key: 'SHOTGUN', name: 'CYBER-SHOTGUN // SLAG',   damage: 16, fireDelay: 0.85, mag: 6,  reserve: 24,  reload: 2.2, bulletSpeed: 55, spread: 0.10,  pellets: 8, life: 0.6, color: 0x543220, fov: 60, scopeType: 'NONE', recoilKick: 0.045, recoilSide: 0.018 },
-  { key: 'SNIPER',  name: 'RAIL-SNIPER // APEX',     damage: 85, fireDelay: 1.4,  mag: 5,  reserve: 15,  reload: 2.8, bulletSpeed: 115, spread: 0.001, pellets: 1, life: 3.0, color: 0x1e222a, fov: 14, scopeType: 'SNIPER', recoilKick: 0.065, recoilSide: 0.006 },
-];
-
-let currentWeaponIndex = 0;
-const ammoState = WEAPONS.map(w => ({ mag: w.mag, reserve: w.reserve }));
-let fireTimer = 0;
-let reloading = false;
-let reloadTimer = 0;
-let isAiming = false;
-
 function currentWeapon() { return WEAPONS[currentWeaponIndex]; }
 
 const scopeOverlayEl = document.getElementById('scopeOverlay');
@@ -816,34 +1143,80 @@ function setAimState(aiming) {
   }
 }
 
-function switchWeapon(index) {
-  if (index === currentWeaponIndex || reloading) return;
-  setAimState(false);
-  currentWeaponIndex = index;
-  buildGunMesh(currentWeapon());
+function applySelectedLoadout() {
+  currentWeaponIndex = selectedLoadoutIndex;
+  const w = currentWeapon();
+  ammoState[currentWeaponIndex].mag = w.mag;
+  ammoState[currentWeaponIndex].reserve = w.reserve;
+  buildGunMesh(w);
   updateWeaponHud();
-  if (networkManager) networkManager.broadcastState();
 }
 
-buildGunMesh(currentWeapon());
+// ================= Game Stats, Telemetry & Team Management =================
+let myPlayerName = 'AGENT-' + Math.floor(Math.random() * 899 + 100);
+let currentRoomCode = 'SECTOR-7';
+let myTeam = 'RED'; // 'RED' or 'BLUE'
+let isMatchActive = false;
+let isSoloMode = false;
 
-// ================= HUD & Game Modes =================
-const scoreEl = document.getElementById('score');
+let matchDuration = 600; // 10 minutes default
+let timeRemaining = 600;
+let gameMode = 'NORMAL'; // 'NORMAL', 'NOAMMO', 'SPEED'
+
+let redScore = 0;
+let blueScore = 0;
+let personalKills = 0;
+let personalDeaths = 0;
+
+const hudMyTeamEl = document.getElementById('hudMyTeam');
+const redScoreEl = document.getElementById('redScore');
+const blueScoreEl = document.getElementById('blueScore');
+const timerBadgeEl = document.getElementById('timer-badge');
+const hudModeNameEl = document.getElementById('hudModeName');
+const hudKillsEl = document.getElementById('hudKills');
+const hudDeathsEl = document.getElementById('hudDeaths');
+const hudKDEl = document.getElementById('hudKD');
+
+const redTeamListEl = document.getElementById('redTeamList');
+const blueTeamListEl = document.getElementById('blueTeamList');
+
+const entryModal = document.getElementById('entryModal');
+const lobbyModal = document.getElementById('lobbyModal');
+const respawnModal = document.getElementById('respawnModal');
+const endGameModal = document.getElementById('endGameModal');
+
+const enterLobbyBtn = document.getElementById('enterLobbyBtn');
+const soloLobbyBtn = document.getElementById('soloLobbyBtn');
+const startMatchBtn = document.getElementById('startMatchBtn');
+const returnLobbyBtn = document.getElementById('returnLobbyBtn');
+const joinRedBtn = document.getElementById('joinRedBtn');
+const joinBlueBtn = document.getElementById('joinBlueBtn');
+
+const timeSelect = document.getElementById('timeSelect');
+const modeSelect = document.getElementById('modeSelect');
+const hostConfigRow = document.getElementById('hostConfigRow');
+const clientWaitMsg = document.getElementById('clientWaitMsg');
+const lobbyRoomTitle = document.getElementById('lobbyRoomTitle');
+const lobbyRoleTitle = document.getElementById('lobbyRoleTitle');
+
+const killfeedEl = document.getElementById('killfeed');
+const healthBarEl = document.getElementById('healthBar');
+const weaponNameEl = document.getElementById('weaponName');
 const ammoMagEl = document.getElementById('ammoMag');
 const ammoReserveEl = document.getElementById('ammoReserve');
-const weaponNameEl = document.getElementById('weaponName');
 const reloadMsgEl = document.getElementById('reloadMsg');
-const healthBarEl = document.getElementById('healthBar');
-const modeNameEl = document.getElementById('modeName');
-const killfeedEl = document.getElementById('killfeed');
-const netTextEl = document.getElementById('netText');
-const netStatusEl = document.getElementById('netStatus');
 const slots = [document.getElementById('slot0'), document.getElementById('slot1'), document.getElementById('slot2'), document.getElementById('slot3')];
 
-slots.forEach((slot, index) => {
-  slot.addEventListener('click', (e) => { e.stopPropagation(); switchWeapon(index); });
-  slot.addEventListener('touchstart', (e) => { e.stopPropagation(); switchWeapon(index); });
-});
+function updateScoreboard() {
+  redScoreEl.textContent = redScore;
+  blueScoreEl.textContent = blueScore;
+  const mins = Math.floor(Math.max(0, timeRemaining) / 60);
+  const secs = Math.floor(Math.max(0, timeRemaining) % 60);
+  timerBadgeEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  hudKillsEl.textContent = personalKills;
+  hudDeathsEl.textContent = personalDeaths;
+  hudKDEl.textContent = (personalKills / Math.max(1, personalDeaths)).toFixed(2);
+}
 
 function updateWeaponHud() {
   const w = currentWeapon();
@@ -854,93 +1227,47 @@ function updateWeaponHud() {
   slots.forEach((s, i) => s.classList.toggle('active', i === currentWeaponIndex));
 }
 
-const MODES = ['NORMAL', 'NOAMMO', 'SPEED'];
-let gameMode = 'NORMAL';
-function cycleGameMode() {
-  gameMode = MODES[(MODES.indexOf(gameMode) + 1) % MODES.length];
-  modeNameEl.textContent = gameMode;
-  reloading = false;
-  reloadMsgEl.style.opacity = '0';
-  updateWeaponHud();
+// Loadout Card Click Listeners
+function setupLoadoutPicker(containerId) {
+  const cards = document.querySelectorAll(`#${containerId} .weapon-card`);
+  cards.forEach(card => {
+    card.addEventListener('click', () => {
+      cards.forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedLoadoutIndex = parseInt(card.dataset.widx);
+      if (!isMatchActive) applySelectedLoadout();
+    });
+  });
 }
+setupLoadoutPicker('lobbyLoadoutPicker');
+setupLoadoutPicker('respawnLoadoutPicker');
 
-let health = 100;
-const MAX_HEALTH = 100;
-let lastDamageTime = -999;
-const REGEN_DELAY = 4.5;
-const REGEN_RATE = 10;
+// ================= Remote Player Avatars =================
+const remotePlayers = new Map();
 
-function takeDamage(amount, attackerName = null) {
-  health = Math.max(0, health - amount);
-  lastDamageTime = clockElapsed;
-  healthBarEl.style.width = (health / MAX_HEALTH * 100) + '%';
-  healthBarEl.style.background = health > 50 ? '#00ff88' : (health > 20 ? '#ffaa00' : '#ff2244');
-  
-  if (health <= 0) {
-    killNotice(attackerName || 'SYSTEM', myPlayerName);
-    respawnPlayer();
-  }
-}
-
-const SPAWN_POINTS = [
-  { x: -50, z: -10 },
-  { x: 30, z: -25 },
-  { x: -10, z: 60 },
-  { x: 50, z: -15 }
-];
-
-function respawnPlayer() {
-  health = MAX_HEALTH;
-  healthBarEl.style.width = '100%';
-  healthBarEl.style.background = '#00ff88';
-  setAimState(false);
-  const sp = SPAWN_POINTS[Math.floor(Math.random() * SPAWN_POINTS.length)];
-  camera.position.set(sp.x, heightAt(sp.x, sp.z) + 1.8, sp.z);
-  verticalVelocity = 0;
-  if (networkManager) networkManager.broadcastState();
-}
-
-function killNotice(killer, victim) {
-  const item = document.createElement('div');
-  item.className = 'kill-item';
-  item.innerHTML = `<span style="color:#00e5ff">${killer}</span> 💥 <span style="color:#ff2bd6">${victim}</span>`;
-  killfeedEl.appendChild(item);
-  setTimeout(() => item.remove(), 4000);
-}
-
-// ================= Remote Player 3D Avatar =================
-const ACCENT_PALETTE = [0x00e5ff, 0xff2bd6, 0xffaa00, 0x00ff88, 0xff5544, 0x8a5cff];
-function accentForName(name) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-  return ACCENT_PALETTE[hash % ACCENT_PALETTE.length];
-}
-
-function createPlayerMesh(name) {
+function createPlayerMesh(name, team) {
   const root = new THREE.Group();
-  const accent = accentForName(name);
+  const accent = team === 'RED' ? 0xff2244 : 0x00e5ff;
 
-  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.9, 0.4), new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.4, metalness: 0.5 }));
+  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.9, 0.4), new THREE.MeshStandardMaterial({ color: 0x3d4757, roughness: 0.4, metalness: 0.5 }));
   chest.position.y = 1.05;
 
   const core = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.42, 12), new THREE.MeshBasicMaterial({ color: accent }));
-  core.rotation.x = Math.PI / 2;
-  core.position.set(0, 1.1, 0.05);
+  core.rotation.x = Math.PI / 2; core.position.set(0, 1.1, 0.05);
 
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 0.45), new THREE.MeshStandardMaterial({ color: 0x555f73, metalness: 0.6, roughness: 0.25 }));
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 0.45), new THREE.MeshStandardMaterial({ color: 0x4f5869, metalness: 0.6, roughness: 0.25 }));
   head.position.y = 1.75;
   const visor = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.14, 0.2), new THREE.MeshBasicMaterial({ color: accent }));
   visor.position.set(0, 1.75, 0.22);
 
-  const limbMat = new THREE.MeshStandardMaterial({ color: 0x3d4757, roughness: 0.6 });
+  const limbMat = new THREE.MeshStandardMaterial({ color: 0x2e3542, roughness: 0.6 });
   const legL = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.7, 0.25), limbMat); legL.position.set(-0.2, 0.35, 0);
   const legR = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.7, 0.25), limbMat); legR.position.set(0.2, 0.35, 0);
   const armL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.7, 0.2), limbMat); armL.position.set(-0.45, 1.05, 0);
   const armR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.7, 0.2), limbMat); armR.position.set(0.45, 1.05, 0);
 
-  const accentMat = new THREE.MeshBasicMaterial({ color: accent });
-  const shoulderL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.42), accentMat); shoulderL.position.set(-0.42, 1.42, 0);
-  const shoulderR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.42), accentMat); shoulderR.position.set(0.42, 1.42, 0);
+  const shoulderL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.42), new THREE.MeshBasicMaterial({ color: accent })); shoulderL.position.set(-0.42, 1.42, 0);
+  const shoulderR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.42), new THREE.MeshBasicMaterial({ color: accent })); shoulderR.position.set(0.42, 1.42, 0);
 
   const weaponMesh = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, 0.7), new THREE.MeshStandardMaterial({ color: 0x556074 }));
   weaponMesh.position.set(0.35, 1.0, 0.4);
@@ -948,24 +1275,20 @@ function createPlayerMesh(name) {
   const nameCanvas = document.createElement('canvas');
   nameCanvas.width = 256; nameCanvas.height = 64;
   const nCtx = nameCanvas.getContext('2d');
-  nCtx.fillStyle = 'rgba(10, 15, 30, 0.7)'; nCtx.fillRect(0, 0, 256, 64);
-  nCtx.strokeStyle = '#00e5ff'; nCtx.lineWidth = 3; nCtx.strokeRect(0, 0, 256, 64);
-  nCtx.fillStyle = '#00e5ff'; nCtx.font = 'bold 26px Courier New'; nCtx.textAlign = 'center';
-  nCtx.fillText(name.substring(0, 10), 128, 42);
+  nCtx.fillStyle = 'rgba(10, 15, 30, 0.75)'; nCtx.fillRect(0, 0, 256, 64);
+  nCtx.strokeStyle = team === 'RED' ? '#ff3355' : '#00e5ff'; nCtx.lineWidth = 4; nCtx.strokeRect(0, 0, 256, 64);
+  nCtx.fillStyle = team === 'RED' ? '#ff3355' : '#00e5ff'; nCtx.font = 'bold 24px Courier New'; nCtx.textAlign = 'center';
+  nCtx.fillText(`[${team}] ${name.substring(0, 10)}`, 128, 42);
   const nameTex = new THREE.CanvasTexture(nameCanvas);
-  const nameTag = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.4), new THREE.MeshBasicMaterial({ map: nameTex, side: THREE.DoubleSide, transparent: true }));
-  nameTag.position.y = 2.3;
+  const nameTag = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.45), new THREE.MeshBasicMaterial({ map: nameTex, side: THREE.DoubleSide, transparent: true }));
+  nameTag.position.y = 2.35;
 
   root.add(chest, core, head, visor, legL, legR, armL, armR, shoulderL, shoulderR, weaponMesh, nameTag);
-  root.userData = { nameTag, weaponMesh, targetPos: new THREE.Vector3(), targetRotY: 0, hp: 100 };
+  root.userData = { name, team, nameTag, targetPos: new THREE.Vector3(), targetRotY: 0, hp: 100 };
   return root;
 }
 
 // ================= Multiplayer WebRTC Network Manager =================
-let myPlayerName = 'AGENT-' + Math.floor(Math.random() * 899 + 100);
-let currentRoomCode = 'SECTOR-7';
-const remotePlayers = new Map();
-
 class NetworkManager {
   constructor(roomCode, playerName) {
     this.roomCode = roomCode.toUpperCase().trim() || 'SECTOR-7';
@@ -976,45 +1299,39 @@ class NetworkManager {
     this.clients = new Map();
     this.isHost = false;
     this.lastBroadcast = 0;
-    this.retriedIdCollision = false;
+    this.lobbyRoster = new Map(); // id -> { name, team }
     this.connectAsClient();
   }
 
   connectAsClient() {
     const myRandomId = `cyberfps-p-${this.roomCode}-${Math.floor(Math.random() * 1000000)}`;
-
-    netTextEl.textContent = 'CONNECTING...';
-    netStatusEl.style.background = '#ffdd44';
-
     this.peer = new Peer(myRandomId);
 
     this.peer.on('open', () => {
-      const conn = this.peer.connect(this.hostPeerId, { reliable: false });
-
+      const conn = this.peer.connect(this.hostPeerId, { reliable: true });
       let hostFound = false;
+
       conn.on('open', () => {
         hostFound = true;
         this.hostConn = conn;
         this.isHost = false;
-        netTextEl.textContent = `ROOM: ${this.roomCode} (CLIENT)`;
-        netStatusEl.style.background = '#00ff88';
+        lobbyRoleTitle.textContent = 'CONNECTED AS CLIENT';
+        hostConfigRow.style.opacity = '0.5';
+        hostConfigRow.style.pointerEvents = 'none';
+        startMatchBtn.style.display = 'none';
+        clientWaitMsg.style.display = 'block';
+
+        this.sendToHost({ type: 'joinLobby', id: this.peer.id, name: this.playerName, team: myTeam });
         this.setupClientListeners(conn);
       });
 
       setTimeout(() => {
-        if (!hostFound && !this.isHost) {
-          this.becomeHost();
-        }
-      }, 1800);
+        if (!hostFound && !this.isHost) this.becomeHost();
+      }, 1600);
     });
 
     this.peer.on('error', (err) => {
-      if (err.type === 'unavailable-id' && !this.retriedIdCollision) {
-        this.retriedIdCollision = true;
-        this.connectAsClient();
-      } else {
-        console.warn('NetworkManager peer error:', err);
-      }
+      if (err.type === 'unavailable-id') this.connectAsClient();
     });
   }
 
@@ -1024,14 +1341,19 @@ class NetworkManager {
     this.isHost = true;
 
     this.peer.on('open', () => {
-      netTextEl.textContent = `ROOM: ${this.roomCode} (HOST)`;
-      netStatusEl.style.background = '#00e5ff';
+      lobbyRoleTitle.textContent = 'HOST (CONFIGURING MISSION)';
+      hostConfigRow.style.opacity = '1';
+      hostConfigRow.style.pointerEvents = 'auto';
+      startMatchBtn.style.display = 'inline-block';
+      clientWaitMsg.style.display = 'none';
+      this.lobbyRoster.set(this.peer.id, { name: this.playerName, team: myTeam });
+      this.updateLobbyUI();
     });
 
     this.peer.on('connection', (conn) => {
       conn.on('open', () => {
         this.clients.set(conn.peer, conn);
-        this.updatePlayerCount();
+        this.broadcastLobbyState();
       });
 
       conn.on('data', (data) => {
@@ -1042,35 +1364,17 @@ class NetworkManager {
       });
 
       conn.on('close', () => {
+        this.lobbyRoster.delete(conn.peer);
         this.removePlayer(conn.peer);
         this.clients.delete(conn.peer);
-        this.updatePlayerCount();
+        this.broadcastLobbyState();
+        this.updateLobbyUI();
       });
-    });
-
-    this.peer.on('error', (err) => {
-      if (err.type === 'unavailable-id') {
-        this.isHost = false;
-        this.connectAsClient();
-      } else {
-        console.warn('NetworkManager host error:', err);
-        netTextEl.textContent = 'SOLO (OFFLINE)';
-        netStatusEl.style.background = '#8899aa';
-      }
     });
   }
 
   setupClientListeners(conn) {
     conn.on('data', (data) => this.handleData(data, 'host'));
-    conn.on('close', () => {
-      netTextEl.textContent = 'HOST DISCONNECTED';
-      netStatusEl.style.background = '#ff2244';
-    });
-  }
-
-  updatePlayerCount() {
-    const count = this.clients.size + 1;
-    netTextEl.textContent = `ROOM: ${this.roomCode} [${count}P]`;
   }
 
   broadcast(packet) {
@@ -1082,62 +1386,88 @@ class NetworkManager {
     }
   }
 
-  broadcastState() {
-    const yaw = camera.rotation.y;
-    const packet = {
-      type: 'pos',
-      id: this.peer ? this.peer.id : 'local',
-      name: this.playerName,
-      x: camera.position.x,
-      y: camera.position.y - 1.7,
-      z: camera.position.z,
-      rotY: yaw,
-      hp: health,
-      wIdx: currentWeaponIndex
-    };
-    this.broadcast(packet);
+  sendToHost(packet) {
+    if (this.hostConn && this.hostConn.open) {
+      this.hostConn.send(JSON.stringify(packet));
+    }
   }
 
-  broadcastShot(origin, dir, weaponKey) {
+  broadcastLobbyState() {
+    if (!this.isHost) return;
+    const rosterObj = {};
+    for (const [k, v] of this.lobbyRoster.entries()) rosterObj[k] = v;
     this.broadcast({
-      type: 'shoot',
-      id: this.peer ? this.peer.id : 'local',
-      ox: origin.x, oy: origin.y, oz: origin.z,
-      dx: dir.x, dy: dir.y, dz: dir.z,
-      weaponKey
+      type: 'lobbySync',
+      roster: rosterObj,
+      matchDuration,
+      gameMode,
+      timeRemaining,
+      redScore,
+      blueScore,
+      isMatchActive
     });
+    this.updateLobbyUI();
   }
 
-  broadcastDamage(targetId, dmg) {
-    this.broadcast({
-      type: 'damage',
-      targetId: targetId,
-      attackerId: this.peer ? this.peer.id : 'local',
-      attackerName: this.playerName,
-      dmg: dmg
-    });
+  updateLobbyUI() {
+    redTeamListEl.innerHTML = '';
+    blueTeamListEl.innerHTML = '';
+    for (const [id, p] of this.lobbyRoster.entries()) {
+      const item = document.createElement('div');
+      item.textContent = `&bull; ${p.name}`;
+      if (p.team === 'RED') redTeamListEl.appendChild(item);
+      else blueTeamListEl.appendChild(item);
+    }
   }
 
-  handleData(raw, sender) {
+  handleData(raw) {
     try {
       const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      if (data.type === 'pos') {
+      if (data.type === 'joinLobby' || data.type === 'updateTeam') {
+        this.lobbyRoster.set(data.id, { name: data.name, team: data.team });
+        if (this.isHost) this.broadcastLobbyState();
+        else this.updateLobbyUI();
+      } else if (data.type === 'lobbySync') {
+        this.lobbyRoster.clear();
+        for (const k in data.roster) this.lobbyRoster.set(k, data.roster[k]);
+        matchDuration = data.matchDuration;
+        timeRemaining = data.timeRemaining;
+        gameMode = data.gameMode;
+        redScore = data.redScore;
+        blueScore = data.blueScore;
+        hudModeNameEl.textContent = gameMode;
+        timeSelect.value = matchDuration;
+        modeSelect.value = gameMode;
+        this.updateLobbyUI();
+        updateScoreboard();
+      } else if (data.type === 'startMatch') {
+        matchDuration = data.matchDuration;
+        timeRemaining = matchDuration;
+        gameMode = data.gameMode;
+        hudModeNameEl.textContent = gameMode;
+        startActiveGame();
+      } else if (data.type === 'pos') {
         let p = remotePlayers.get(data.id);
         if (!p) {
-          p = createPlayerMesh(data.name || 'AGENT');
+          p = createPlayerMesh(data.name || 'AGENT', data.team || 'RED');
           scene.add(p);
           remotePlayers.set(data.id, p);
-          killNotice(data.name, 'CONNECTED');
         }
         p.userData.targetPos.set(data.x, data.y, data.z);
         p.userData.targetRotY = data.rotY;
         p.userData.hp = data.hp;
+        p.userData.team = data.team;
       } else if (data.type === 'shoot') {
-        spawnRemoteTracer(new THREE.Vector3(data.ox, data.oy, data.oz), new THREE.Vector3(data.dx, data.dy, data.dz));
+        spawnRemoteTracer(new THREE.Vector3(data.ox, data.oy, data.oz), new THREE.Vector3(data.dx, data.dy, data.dz), data.team);
       } else if (data.type === 'damage') {
         if (this.peer && data.targetId === this.peer.id) {
-          takeDamage(data.dmg, data.attackerName);
+          takeDamage(data.dmg, data.attackerName, data.attackerTeam, data.attackerId);
         }
+      } else if (data.type === 'killSync') {
+        killNotice(data.killer, data.victim);
+        redScore = data.redScore;
+        blueScore = data.blueScore;
+        updateScoreboard();
       }
     } catch (e) {}
   }
@@ -1153,57 +1483,226 @@ class NetworkManager {
 
 let networkManager = null;
 
-window.addEventListener('beforeunload', () => {
-  if (networkManager && networkManager.peer) networkManager.peer.destroy();
-});
-
-// ================= Controls & Input =================
+// ================= Controls & Spawn Handling =================
 const controls = new PointerLockControls(camera, document.body);
-const blocker = document.getElementById('blocker');
-const startBtn = document.getElementById('startBtn');
-const soloBtn = document.getElementById('soloBtn');
-const nameInput = document.getElementById('playerNameInput');
-const roomInput = document.getElementById('roomCodeInput');
-
-let isGameActive = false;
 const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 if (isTouchDevice) document.body.classList.add('touch-device');
 
-function launchGame(isSolo = false) {
-  myPlayerName = nameInput.value.trim() || ('AGENT-' + Math.floor(Math.random() * 899 + 100));
-  currentRoomCode = roomInput.value.trim() || 'SECTOR-7';
+const RED_SPAWNS = [{ x: -60, z: -30 }, { x: -50, z: -10 }, { x: -70, z: 20 }, { x: -35, z: 10 }];
+const BLUE_SPAWNS = [{ x: 55, z: 20 }, { x: 65, z: -20 }, { x: 45, z: 50 }, { x: 30, z: -25 }];
 
-  if (!isSolo) {
-    networkManager = new NetworkManager(currentRoomCode, myPlayerName);
-  } else {
-    netTextEl.textContent = 'SOLO (OFFLINE)';
-    netStatusEl.style.background = '#8899aa';
-  }
-
-  if (screen.orientation && screen.orientation.lock) {
-    screen.orientation.lock('landscape').catch(() => {});
-  }
-  if (!isTouchDevice) {
-    controls.lock();
-  } else {
-    blocker.style.display = 'none';
-    isGameActive = true;
-  }
+function spawnPlayerToTeamBase() {
+  const pool = myTeam === 'RED' ? RED_SPAWNS : BLUE_SPAWNS;
+  const sp = pool[Math.floor(Math.random() * pool.length)];
+  camera.position.set(sp.x, heightAt(sp.x, sp.z) + 1.8, sp.z);
+  verticalVelocity = 0;
+  if (myTeam === 'RED') camera.rotation.y = -Math.PI / 2;
+  else camera.rotation.y = Math.PI / 2;
 }
 
-startBtn.addEventListener('click', () => launchGame(false));
-soloBtn.addEventListener('click', () => launchGame(true));
+// Entry Modal Actions
+enterLobbyBtn.addEventListener('click', () => {
+  myPlayerName = document.getElementById('playerNameInput').value.trim() || myPlayerName;
+  currentRoomCode = document.getElementById('roomCodeInput').value.trim() || 'SECTOR-7';
+  entryModal.style.display = 'none';
+  lobbyModal.style.display = 'flex';
+  lobbyRoomTitle.textContent = currentRoomCode;
+  networkManager = new NetworkManager(currentRoomCode, myPlayerName);
+});
 
-controls.addEventListener('lock', () => { blocker.style.display = 'none'; isGameActive = true; });
-controls.addEventListener('unlock', () => {
-  if (!isTouchDevice) {
-    blocker.style.display = 'flex';
-    isGameActive = false;
-    setAimState(false);
+soloLobbyBtn.addEventListener('click', () => {
+  isSoloMode = true;
+  myPlayerName = document.getElementById('playerNameInput').value.trim() || myPlayerName;
+  currentRoomCode = 'SOLO';
+  entryModal.style.display = 'none';
+  lobbyModal.style.display = 'flex';
+  lobbyRoomTitle.textContent = 'SOLO (OFFLINE)';
+  lobbyRoleTitle.textContent = 'HOST (SINGLE PLAYER)';
+  redTeamListEl.innerHTML = `<div>&bull; ${myPlayerName} (YOU)</div>`;
+  blueTeamListEl.innerHTML = `<div>&bull; CYBER-BOT ALPHA</div><div>&bull; CYBER-BOT BETA</div>`;
+});
+
+// Team Switching in Lobby (Disabled during active matches)
+joinRedBtn.addEventListener('click', () => {
+  if (isMatchActive) return;
+  myTeam = 'RED';
+  hudMyTeamEl.textContent = 'RED';
+  hudMyTeamEl.style.color = '#ff3355';
+  if (networkManager) {
+    networkManager.lobbyRoster.set(networkManager.peer ? networkManager.peer.id : 'local', { name: myPlayerName, team: myTeam });
+    networkManager.broadcast({ type: 'updateTeam', id: networkManager.peer ? networkManager.peer.id : 'local', name: myPlayerName, team: myTeam });
+    networkManager.updateLobbyUI();
   }
 });
 
-// Movement State
+joinBlueBtn.addEventListener('click', () => {
+  if (isMatchActive) return;
+  myTeam = 'BLUE';
+  hudMyTeamEl.textContent = 'BLUE';
+  hudMyTeamEl.style.color = '#00e5ff';
+  if (networkManager) {
+    networkManager.lobbyRoster.set(networkManager.peer ? networkManager.peer.id : 'local', { name: myPlayerName, team: myTeam });
+    networkManager.broadcast({ type: 'updateTeam', id: networkManager.peer ? networkManager.peer.id : 'local', name: myPlayerName, team: myTeam });
+    networkManager.updateLobbyUI();
+  }
+});
+
+// Host settings sync
+timeSelect.addEventListener('change', () => {
+  matchDuration = parseInt(timeSelect.value);
+  timeRemaining = matchDuration;
+  if (networkManager && networkManager.isHost) networkManager.broadcastLobbyState();
+});
+
+modeSelect.addEventListener('change', () => {
+  gameMode = modeSelect.value;
+  hudModeNameEl.textContent = gameMode;
+  if (networkManager && networkManager.isHost) networkManager.broadcastLobbyState();
+});
+
+// Start Match
+startMatchBtn.addEventListener('click', () => {
+  matchDuration = parseInt(timeSelect.value);
+  timeRemaining = matchDuration;
+  gameMode = modeSelect.value;
+  hudModeNameEl.textContent = gameMode;
+  redScore = 0; blueScore = 0;
+  personalKills = 0; personalDeaths = 0;
+
+  if (networkManager && networkManager.isHost) {
+    networkManager.broadcast({ type: 'startMatch', matchDuration, gameMode });
+  }
+  startActiveGame();
+});
+
+function startActiveGame() {
+  lobbyModal.style.display = 'none';
+  respawnModal.style.display = 'none';
+  endGameModal.style.display = 'none';
+  isMatchActive = true;
+  health = MAX_HEALTH;
+  healthBarEl.style.width = '100%';
+
+  applySelectedLoadout();
+  spawnPlayerToTeamBase();
+  updateScoreboard();
+
+  if (!isTouchDevice) controls.lock();
+}
+
+// Return to Lobby from End Screen
+returnLobbyBtn.addEventListener('click', () => {
+  endGameModal.style.display = 'none';
+  lobbyModal.style.display = 'flex';
+  isMatchActive = false;
+  timeRemaining = matchDuration;
+  updateScoreboard();
+});
+
+// ================= Damage, Health & Death Handling =================
+let health = 100;
+const MAX_HEALTH = 100;
+let lastDamageTime = -999;
+const REGEN_DELAY = 4.5;
+const REGEN_RATE = 10;
+
+function takeDamage(amount, attackerName = null, attackerTeam = null, attackerId = null) {
+  if (!isMatchActive || health <= 0) return;
+  // Prevent friendly fire
+  if (attackerTeam && attackerTeam === myTeam) return;
+
+  health = Math.max(0, health - amount);
+  lastDamageTime = clockElapsed;
+  healthBarEl.style.width = (health / MAX_HEALTH * 100) + '%';
+  healthBarEl.style.background = health > 50 ? '#00ff88' : (health > 20 ? '#ffaa00' : '#ff2244');
+
+  if (health <= 0) {
+    personalDeaths++;
+    if (attackerTeam === 'RED') redScore++;
+    else if (attackerTeam === 'BLUE') blueScore++;
+
+    killNotice(attackerName || 'SYSTEM', myPlayerName);
+    updateScoreboard();
+
+    if (networkManager) {
+      networkManager.broadcast({
+        type: 'killSync',
+        killer: attackerName || 'SYSTEM',
+        victim: myPlayerName,
+        redScore,
+        blueScore
+      });
+    }
+    triggerRespawnSequence();
+  }
+}
+
+function killNotice(killer, victim) {
+  const item = document.createElement('div');
+  item.className = 'kill-item';
+  item.innerHTML = `<span style="color:#ff3355">${killer}</span> 💥 <span style="color:#00e5ff">${victim}</span>`;
+  killfeedEl.appendChild(item);
+  setTimeout(() => item.remove(), 4000);
+}
+
+// Death & Respawn Sequence with Loadout selection
+let respawnCountdown = 3;
+let respawnInterval = null;
+
+function triggerRespawnSequence() {
+  if (controls.isLocked) controls.unlock();
+  respawnModal.style.display = 'flex';
+  respawnCountdown = 3;
+  document.getElementById('respawnTimerNum').textContent = respawnCountdown;
+
+  clearInterval(respawnInterval);
+  respawnInterval = setInterval(() => {
+    respawnCountdown--;
+    document.getElementById('respawnTimerNum').textContent = respawnCountdown;
+    if (respawnCountdown <= 0) {
+      clearInterval(respawnInterval);
+      respawnModal.style.display = 'none';
+      health = MAX_HEALTH;
+      healthBarEl.style.width = '100%';
+      healthBarEl.style.background = '#00ff88';
+      applySelectedLoadout();
+      spawnPlayerToTeamBase();
+      if (!isTouchDevice && isMatchActive) controls.lock();
+    }
+  }, 1000);
+}
+
+// End Game
+function finishMatch() {
+  isMatchActive = false;
+  if (controls.isLocked) controls.unlock();
+
+  endGameModal.style.display = 'flex';
+  document.getElementById('endRedScore').textContent = redScore;
+  document.getElementById('endBlueScore').textContent = blueScore;
+  document.getElementById('endKills').textContent = personalKills;
+  document.getElementById('endDeaths').textContent = personalDeaths;
+  document.getElementById('endKD').textContent = (personalKills / Math.max(1, personalDeaths)).toFixed(2);
+
+  const title = document.getElementById('endGameTitle');
+  const sub = document.getElementById('endGameSub');
+
+  if (redScore === blueScore) {
+    title.textContent = 'STALEMATE // DRAW';
+    title.style.color = '#ffdd44';
+    sub.textContent = 'NEITHER SQUAD SECURED SECTOR DOMINANCE';
+  } else if ((myTeam === 'RED' && redScore > blueScore) || (myTeam === 'BLUE' && blueScore > redScore)) {
+    title.textContent = 'VICTORY';
+    title.style.color = '#00ff88';
+    sub.textContent = `${myTeam} TEAM SECURED FULL SECTOR DOMINANCE`;
+  } else {
+    title.textContent = 'DEFEAT';
+    title.style.color = '#ff3355';
+    sub.textContent = `HOSTILE FORCES SEIZED CONTROL OF SECTOR 07`;
+  }
+}
+
+// ================= Movement, Input & Shooting =================
 const move = { forward: false, back: false, left: false, right: false };
 const velocity = new THREE.Vector3();
 const BASE_SPEED = 8.0;
@@ -1219,19 +1718,15 @@ function tryJump() {
   }
 }
 
+// NOTE: Key 1-4 switching during match is disabled; weapon is locked to selected loadout
 document.addEventListener('keydown', (e) => {
+  if (!isMatchActive) return;
   switch (e.code) {
     case 'KeyW': move.forward = true; break;
     case 'KeyS': move.back = true; break;
     case 'KeyA': move.left = true; break;
     case 'KeyD': move.right = true; break;
-    case 'Digit1': switchWeapon(0); break;
-    case 'Digit2': switchWeapon(1); break;
-    case 'Digit3': switchWeapon(2); break;
-    case 'Digit4': switchWeapon(3); break;
     case 'KeyR': startReload(); break;
-    case 'KeyM': cycleGameMode(); break;
-    case 'KeyH': takeDamage(15); break;
     case 'Space': tryJump(); break;
   }
 });
@@ -1245,7 +1740,7 @@ document.addEventListener('keyup', (e) => {
   }
 });
 
-// Mobile Touch Controls
+// Mobile Controls
 const joystickZone = document.getElementById('joystickZone');
 const joystickKnob = document.getElementById('joystickKnob');
 const fireBtn = document.getElementById('fireBtn');
@@ -1253,7 +1748,13 @@ const adsBtn = document.getElementById('adsBtn');
 const reloadBtn = document.getElementById('reloadBtn');
 const jumpBtn = document.getElementById('jumpBtn');
 
-jumpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); tryJump(); }, { passive: false });
+jumpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); tryJump(); }, { passive: false });
+reloadBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startReload(); }, { passive: false });
+adsBtn.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  setAimState(!isAiming);
+  adsBtn.classList.toggle('active', isAiming);
+}, { passive: false });
 
 let joystickTouchId = null;
 let joystickVector = { x: 0, y: 0 };
@@ -1304,45 +1805,34 @@ function updateJoystick(clientX, clientY) {
   joystickVector.y = -knobY / JOYSTICK_MAX_RADIUS;
 }
 
+let isMouseDown = false;
 fireBtn.addEventListener('touchstart', (e) => { e.preventDefault(); isMouseDown = true; tryShoot(); }, { passive: false });
-const stopFire = (e) => { e.preventDefault(); isMouseDown = false; };
-fireBtn.addEventListener('touchend', stopFire);
-fireBtn.addEventListener('touchcancel', stopFire);
-
-adsBtn.addEventListener('touchstart', (e) => {
-  e.preventDefault();
-  setAimState(!isAiming);
-  adsBtn.classList.toggle('active', isAiming);
-}, { passive: false });
-
-reloadBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startReload(); }, { passive: false });
+fireBtn.addEventListener('touchend', (e) => { e.preventDefault(); isMouseDown = false; });
 
 let lookTouchId = null;
 let lastLookX = 0, lastLookY = 0;
 const LOOK_SENSITIVITY = 0.0065;
 
 window.addEventListener('touchstart', (e) => {
-  if (!isGameActive) return;
+  if (!isMatchActive) return;
   for (let i = 0; i < e.changedTouches.length; i++) {
     const t = e.changedTouches[i];
-    if (t.target.closest('#touchControls') || t.target.closest('#weaponBar') || t.target.closest('#blocker')) continue;
+    if (t.target.closest('#touchControls') || t.target.closest('.modal-overlay')) continue;
     if (lookTouchId === null) {
       lookTouchId = t.identifier;
-      lastLookX = t.clientX;
-      lastLookY = t.clientY;
+      lastLookX = t.clientX; lastLookY = t.clientY;
     }
   }
 }, { passive: true });
 
 window.addEventListener('touchmove', (e) => {
-  if (!isGameActive) return;
+  if (!isMatchActive) return;
   for (let i = 0; i < e.changedTouches.length; i++) {
     const t = e.changedTouches[i];
     if (t.identifier === lookTouchId) {
       const dx = t.clientX - lastLookX;
       const dy = t.clientY - lastLookY;
-      lastLookX = t.clientX;
-      lastLookY = t.clientY;
+      lastLookX = t.clientX; lastLookY = t.clientY;
 
       const sens = isAiming ? LOOK_SENSITIVITY * 0.5 : LOOK_SENSITIVITY;
       camera.rotation.y -= dx * sens;
@@ -1356,52 +1846,17 @@ window.addEventListener('touchmove', (e) => {
 const endLookTouch = (e) => {
   for (let i = 0; i < e.changedTouches.length; i++) {
     if (e.changedTouches[i].identifier === lookTouchId) {
-      lookTouchId = null;
-      break;
+      lookTouchId = null; break;
     }
   }
 };
 window.addEventListener('touchend', endLookTouch);
 window.addEventListener('touchcancel', endLookTouch);
 
-// ================= Drones & Targets =================
-const TARGET_COUNT = 8;
-const TARGET_RADIUS = 0.65;
-const TARGET_MAX_HP = 60;
-const targets = [];
-
-function randomTargetPosition() {
-  const x = (Math.random() * 2 - 1) * (HALF_W - 12);
-  const z = (Math.random() * 2 - 1) * (HALF_D - 12);
-  return new THREE.Vector3(x, heightAt(x, z) + TARGET_RADIUS + 0.9, z);
-}
-
-for (let i = 0; i < TARGET_COUNT; i++) {
-  const group = new THREE.Group();
-  const coreMesh = new THREE.Mesh(new THREE.SphereGeometry(TARGET_RADIUS, 14, 14), new THREE.MeshStandardMaterial({ color: 0x222938, roughness: 0.3, metalness: 0.8 }));
-  const eyeMesh = new THREE.Mesh(new THREE.SphereGeometry(TARGET_RADIUS * 0.45, 10, 10), new THREE.MeshBasicMaterial({ color: 0xff0055 }));
-  eyeMesh.position.z = TARGET_RADIUS * 0.7;
-  const scannerRing = new THREE.Mesh(new THREE.TorusGeometry(TARGET_RADIUS * 1.3, 0.04, 6, 18), new THREE.MeshBasicMaterial({ color: 0x00e5ff }));
-  scannerRing.rotation.x = Math.PI / 2;
-
-  group.add(coreMesh, eyeMesh, scannerRing);
-  group.position.copy(randomTargetPosition());
-  scene.add(group);
-  targets.push({ group, eyeMesh, scannerRing, hp: TARGET_MAX_HP, baseY: group.position.y, seed: Math.random() * 10 });
-}
-
-function respawnTarget(t) {
-  t.group.position.copy(randomTargetPosition());
-  t.baseY = t.group.position.y;
-  t.hp = TARGET_MAX_HP;
-  t.eyeMesh.material.color.setHex(0xff0055);
-}
-
-// ================= Bullets, Shooting & PvP =================
+// ================= Bullets, Hitmarkers & PvP Combat =================
 const bulletGeo = new THREE.SphereGeometry(0.09, 6, 6);
 const bulletMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
 const bullets = [];
-let score = 0;
 
 let recoilPitch = 0;
 let recoilYaw = 0;
@@ -1426,12 +1881,11 @@ function showHitmarker() {
   hitmarkerTimeout = setTimeout(() => { hitmarker.style.opacity = '0'; }, 80);
 }
 
-function spawnRemoteTracer(origin, dir) {
-  const tracer = new THREE.Mesh(bulletGeo, new THREE.MeshBasicMaterial({ color: 0xff2bd6 }));
+function spawnRemoteTracer(origin, dir, team) {
+  const tracer = new THREE.Mesh(bulletGeo, new THREE.MeshBasicMaterial({ color: team === 'RED' ? 0xff2244 : 0x00e5ff }));
   tracer.position.copy(origin);
   tracer.userData.velocity = dir.clone().multiplyScalar(70);
   tracer.userData.life = 1.2;
-  tracer.userData.isRemote = true;
   scene.add(tracer);
   bullets.push(tracer);
 }
@@ -1455,12 +1909,17 @@ function fireOnePellet(weapon) {
   bullets.push(bullet);
 
   if (networkManager) {
-    networkManager.broadcastShot(camera.position, dir, weapon.key);
+    networkManager.broadcast({
+      type: 'shoot',
+      ox: camera.position.x, oy: camera.position.y, oz: camera.position.z,
+      dx: dir.x, dy: dir.y, dz: dir.z,
+      team: myTeam
+    });
   }
 }
 
 function tryShoot() {
-  if (!controls.isLocked && !isGameActive) return;
+  if (!isMatchActive || health <= 0) return;
   if (reloading || fireTimer > 0) return;
 
   const weapon = currentWeapon();
@@ -1481,14 +1940,10 @@ function tryShoot() {
   updateWeaponHud();
 }
 
-let isMouseDown = false;
 document.addEventListener('mousedown', (e) => { 
-  if (e.button === 0) { 
-    isMouseDown = true; 
-    tryShoot(); 
-  } else if (e.button === 2) {
-    setAimState(true);
-  }
+  if (!isMatchActive) return;
+  if (e.button === 0) { isMouseDown = true; tryShoot(); } 
+  else if (e.button === 2) setAimState(true);
 });
 
 document.addEventListener('mouseup', (e) => { 
@@ -1527,6 +1982,17 @@ function animate() {
   const delta = Math.min(clock.getDelta(), 0.1);
   clockElapsed += delta;
 
+  // Match Timer Countdown (Host ticks & syncs; solo ticks locally)
+  if (isMatchActive) {
+    timeRemaining -= delta;
+    updateScoreboard();
+
+    if (timeRemaining <= 0) {
+      timeRemaining = 0;
+      finishMatch();
+    }
+  }
+
   // Smooth Field-of-View and Weapon Positioning for ADS Zoom
   const targetFov = isAiming ? currentWeapon().fov : DEFAULT_FOV;
   camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, delta * 15);
@@ -1535,11 +2001,11 @@ function animate() {
   const targetGunPos = isAiming ? ADS_GUN_POS : NORMAL_GUN_POS;
   gunGroup.position.lerp(targetGunPos, delta * 15);
 
-  // Drones animation
-  targets.forEach((t) => {
-    t.group.position.y = t.baseY + Math.sin(clockElapsed * 2.5 + t.seed) * 0.25;
-    t.scannerRing.rotation.z += delta * 3.0;
-  });
+  // Hologram Plaza Animation
+  if (holoGemMesh) {
+    holoGemMesh.rotation.x += delta * 0.8;
+    holoGemMesh.rotation.y += delta * 1.2;
+  }
 
   // Remote Players smooth position lerp & name orientation
   remotePlayers.forEach((mesh) => {
@@ -1569,14 +2035,14 @@ function animate() {
   }
 
   // Health Regen
-  if (health < MAX_HEALTH && (clockElapsed - lastDamageTime) > REGEN_DELAY) {
+  if (health > 0 && health < MAX_HEALTH && (clockElapsed - lastDamageTime) > REGEN_DELAY) {
     health = Math.min(MAX_HEALTH, health + REGEN_RATE * delta);
     healthBarEl.style.width = (health / MAX_HEALTH * 100) + '%';
     healthBarEl.style.background = health > 50 ? '#00ff88' : (health > 20 ? '#ffaa00' : '#ff2244');
   }
 
-  // Local Player Movement Physics with Sloped Terrain & Colliders
-  if (controls.isLocked || isGameActive) {
+  // Movement & Collisions
+  if (isMatchActive && (controls.isLocked || isTouchDevice)) {
     const speed = (gameMode === 'SPEED' ? BASE_SPEED * 2 : BASE_SPEED) * (isAiming ? 0.6 : 1.0);
     velocity.set(0, 0, 0);
 
@@ -1629,47 +2095,51 @@ function animate() {
     }
 
     if (networkManager && (clockElapsed - networkManager.lastBroadcast > 0.05)) {
-      networkManager.broadcastState();
+      networkManager.broadcast({
+        type: 'pos',
+        id: networkManager.peer ? networkManager.peer.id : 'local',
+        name: myPlayerName,
+        team: myTeam,
+        x: camera.position.x,
+        y: camera.position.y - 1.7,
+        z: camera.position.z,
+        rotY: camera.rotation.y,
+        hp: health
+      });
       networkManager.lastBroadcast = clockElapsed;
     }
   }
 
-  // Bullet simulation & PvP hit checks
+  // Bullets Simulation & PvP Hit Checks
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
     b.position.addScaledVector(b.userData.velocity, delta);
     b.userData.life -= delta;
 
     let hit = false;
-
     if (b.userData.isLocal) {
       for (const [peerId, rPlayer] of remotePlayers.entries()) {
+        // Prevent friendly fire
+        if (rPlayer.userData.team === myTeam) continue;
+
         const playerCenter = rPlayer.position.clone().add(new THREE.Vector3(0, 1.0, 0));
-        if (b.position.distanceTo(playerCenter) < 1.0) {
+        if (b.position.distanceTo(playerCenter) < 1.1) {
           showHitmarker();
-          score += 25;
-          scoreEl.textContent = score;
+          personalKills++;
+          updateScoreboard();
+
           if (networkManager) {
-            networkManager.broadcastDamage(peerId, b.userData.damage);
+            networkManager.broadcast({
+              type: 'damage',
+              targetId: peerId,
+              attackerName: myPlayerName,
+              attackerTeam: myTeam,
+              attackerId: networkManager.peer ? networkManager.peer.id : 'local',
+              dmg: b.userData.damage
+            });
           }
           hit = true;
           break;
-        }
-      }
-
-      if (!hit) {
-        for (const t of targets) {
-          if (b.position.distanceTo(t.group.position) < TARGET_RADIUS + 0.2) {
-            t.hp -= b.userData.damage;
-            showHitmarker();
-            if (t.hp <= 0) {
-              score += 10;
-              scoreEl.textContent = score;
-              respawnTarget(t);
-            }
-            hit = true;
-            break;
-          }
         }
       }
     }
@@ -1683,6 +2153,7 @@ function animate() {
   renderer.render(scene, camera);
 }
 
+updateScoreboard();
 updateWeaponHud();
 animate();
 
