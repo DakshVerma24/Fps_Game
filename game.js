@@ -657,8 +657,18 @@ const PEER_CONFIG = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' }
-    ]
+      { urls: 'stun:stun2.l.google.com:19302' },
+
+      {
+        urls: [
+          'turn:eu-0.turn.peerjs.com:3478',
+          'turn:us-0.turn.peerjs.com:3478'
+        ],
+        username: 'peerjs',
+        credential: 'peerjsp'
+      }
+    ],
+    sdpSemantics: 'unified-plan'
   }
 };
 
@@ -976,7 +986,7 @@ class NetworkManager {
   }
 
   syncVoiceMeshCalls() {
-    if (!this.peer || !localVoiceStream) return;
+    if (!this.peer || this.peer.destroyed || !this.peer.open || !localVoiceStream) return;
     const myId = this.peer.id;
 
     for (const [peerId, info] of this.lobbyRoster.entries()) {
