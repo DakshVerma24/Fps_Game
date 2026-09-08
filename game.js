@@ -93,7 +93,7 @@ function createBuildingFacadeTexture(baseColorHex, litColorHex, density = 0.6) {
 
   ctx.strokeStyle = '#080a10'; ctx.lineWidth = 3;
   for (let y = 0; y <= 512; y += 48) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(512, y); ctx.stroke(); }
-  for (let x = 0; x <= 512; x += 48) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(512, x); ctx.stroke(); }
+  for (let x = 0; x <= 512; x += 48) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(512, y); ctx.stroke(); }
 
   const winW = 28, winH = 20;
   for (let y = 14; y < 512; y += 48) {
@@ -525,14 +525,14 @@ let personalKills = 0;
 let personalDeaths = 0;
 
 // Dash / Slide System State
-const DASH_DURATION = 0.5; // 2 seconds slide duration
-const DASH_COOLDOWN = 1.2; // 1.2s cooldown after slide finishes
+const DASH_DURATION = 0.5;
+const DASH_COOLDOWN = 1.2;
 let isDashing = false;
 let dashTimeRemaining = 0;
 let dashCooldownTimer = 0;
 const dashDir = new THREE.Vector3();
 const NORMAL_EYE_HEIGHT = 1.7;
-const DASH_EYE_HEIGHT = 0.95; // Lower vertical view during slide
+const DASH_EYE_HEIGHT = 0.95;
 let currentEyeHeight = NORMAL_EYE_HEIGHT;
 
 const hudMyTeamEl = document.getElementById('hudMyTeam');
@@ -618,7 +618,6 @@ setupLoadoutPicker('respawnLoadoutPicker');
 function triggerSlideDash() {
   if (!isMatchActive || isDashing || dashCooldownTimer > 0 || health <= 0) return;
 
-  // Determine slide direction from inputs or camera facing
   const forward = new THREE.Vector3();
   camera.getWorldDirection(forward);
   forward.y = 0; forward.normalize();
@@ -649,16 +648,16 @@ let localIsSpeaking = false;
 const remoteVoices = new Map();
 const pendingVoiceCalls = new Set();
 const MAX_PROXIMITY_DIST = 75;
-const MIN_PROXIMITY_DIST = 4.0;
+const MIN_PROXIMITY_DIST = 3.0;
 
-// STUN ICE Server Configuration for Mobile 4G/5G <-> PC Crossplay
+// STUN/TURN Config with robust fallback for Mobile Cellular <-> Broadband PC Crossplay
 const PEER_CONFIG = {
   config: {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' },
-
+      { urls: 'stun:stun.relay.metered.ca:80' },
       {
         urls: [
           'turn:eu-0.turn.peerjs.com:3478',
@@ -675,13 +674,17 @@ const PEER_CONFIG = {
 function getOrCreateAudioContext() {
   if (!voiceAudioCtx) {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    voiceAudioCtx = new AudioContextClass();
+    voiceAudioCtx = new AudioContextClass({ latencyHint: 'interactive' });
   }
   if (voiceAudioCtx.state === 'suspended') {
-    voiceAudioCtx.resume();
+    voiceAudioCtx.resume().catch(() => {});
   }
   return voiceAudioCtx;
 }
+
+// Mobile Web Audio unlock listener
+window.addEventListener('touchstart', () => getOrCreateAudioContext(), { once: false, passive: true });
+window.addEventListener('pointerdown', () => getOrCreateAudioContext(), { once: false, passive: true });
 
 function createSilentFallbackStream() {
   const ctx = getOrCreateAudioContext();
@@ -701,7 +704,11 @@ async function initProximityMic() {
 
   try {
     localVoiceStream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      },
       video: false
     });
   } catch (err) {
@@ -759,14 +766,24 @@ function setupRemoteVoice(remotePeerId, stream, call = null) {
   const ctx = getOrCreateAudioContext();
   cleanupRemoteVoice(remotePeerId);
 
-  // Mobile Crossplay Fix: Unmuted audio element with playsInline for iOS/Android playback
+  // iOS / Mobile WebKit fix: Elements MUST be in DOM and muted to prevent raw audio leaking
   const hiddenAudio = document.createElement('audio');
+  hiddenAudio.style.display = 'none';
   hiddenAudio.setAttribute('playsinline', '');
   hiddenAudio.setAttribute('autoplay', '');
+  hiddenAudio.muted = true;
   hiddenAudio.srcObject = stream;
-  hiddenAudio.muted = false; 
-  hiddenAudio.volume = 0.001; // Tiny direct element volume ensures mobile WebKit audio pipeline stays active
-  hiddenAudio.play().catch(() => {});
+  document.body.appendChild(hiddenAudio);
+
+  hiddenAudio.play().catch(() => {
+    const unlock = () => {
+      hiddenAudio.play().catch(() => {});
+      window.removeEventListener('touchstart', unlock);
+      window.removeEventListener('pointerdown', unlock);
+    };
+    window.addEventListener('touchstart', unlock, { passive: true });
+    window.addEventListener('pointerdown', unlock, { passive: true });
+  });
 
   let source, panner, gain, analyser;
   try {
@@ -774,13 +791,13 @@ function setupRemoteVoice(remotePeerId, stream, call = null) {
     panner = ctx.createPanner();
     panner.panningModel = 'HRTF';
     panner.distanceModel = 'inverse';
-    panner.refDistance = 4;
+    panner.refDistance = MIN_PROXIMITY_DIST;
     panner.maxDistance = MAX_PROXIMITY_DIST;
-    panner.rolloffFactor = 1.0;
+    panner.rolloffFactor = 1.2;
     panner.coneInnerAngle = 360;
 
     gain = ctx.createGain();
-    gain.gain.value = 1.8;
+    gain.gain.value = 1.0;
 
     analyser = ctx.createAnalyser();
     analyser.fftSize = 256;
@@ -791,7 +808,7 @@ function setupRemoteVoice(remotePeerId, stream, call = null) {
     panner.connect(gain);
     gain.connect(ctx.destination);
   } catch (e) {
-    console.warn('Web Audio node routing fallback for peer:', remotePeerId, e);
+    console.warn('Web Audio routing fallback for peer:', remotePeerId, e);
   }
 
   remoteVoices.set(remotePeerId, {
@@ -811,6 +828,7 @@ function cleanupRemoteVoice(remotePeerId) {
       if (v.gain) v.gain.disconnect();
       if (v.analyser) v.analyser.disconnect();
       if (v.hiddenAudio) {
+        v.hiddenAudio.pause();
         v.hiddenAudio.srcObject = null;
         v.hiddenAudio.remove();
       }
@@ -856,7 +874,7 @@ function pollVoiceActivity() {
 
   updateSpeakerTabs();
 }
-setInterval(pollVoiceActivity, 70);
+setInterval(pollVoiceActivity, 80);
 
 function updateSpeakerTabs() {
   voiceSpeakerTabsEl.innerHTML = '';
@@ -989,10 +1007,12 @@ class NetworkManager {
     if (!this.peer || this.peer.destroyed || !this.peer.open || !localVoiceStream) return;
     const myId = this.peer.id;
 
-    for (const [peerId, info] of this.lobbyRoster.entries()) {
+    for (const [peerId] of this.lobbyRoster.entries()) {
       if (peerId === myId) continue;
       if (myId < peerId && !remoteVoices.has(peerId) && !pendingVoiceCalls.has(peerId)) {
         pendingVoiceCalls.add(peerId);
+        setTimeout(() => pendingVoiceCalls.delete(peerId), 5000);
+
         const call = this.peer.call(peerId, localVoiceStream);
         if (call) {
           call.on('stream', (remoteStream) => {
@@ -1200,6 +1220,13 @@ class NetworkManager {
 
 let networkManager = null;
 
+// Periodic mesh check to maintain WebRTC calls if packets dropped during transition
+setInterval(() => {
+  if (networkManager) {
+    networkManager.syncVoiceMeshCalls();
+  }
+}, 4000);
+
 // ================= Team Spawn Points =================
 const RED_SPAWNS = [
   { x: -46, z: 0 },
@@ -1231,6 +1258,7 @@ function spawnPlayerToTeamBase() {
 
 // Entry Modal Actions
 enterLobbyBtn.addEventListener('click', async () => {
+  getOrCreateAudioContext();
   await initProximityMic();
   myPlayerName = document.getElementById('playerNameInput').value.trim() || myPlayerName;
   currentRoomCode = document.getElementById('roomCodeInput').value.trim() || 'SECTOR-7';
@@ -1241,6 +1269,7 @@ enterLobbyBtn.addEventListener('click', async () => {
 });
 
 soloLobbyBtn.addEventListener('click', async () => {
+  getOrCreateAudioContext();
   await initProximityMic();
   isSoloMode = true;
   myPlayerName = document.getElementById('playerNameInput').value.trim() || myPlayerName;
@@ -1292,6 +1321,7 @@ modeSelect.addEventListener('change', () => {
 });
 
 startMatchBtn.addEventListener('click', () => {
+  getOrCreateAudioContext();
   matchDuration = parseInt(timeSelect.value);
   timeRemaining = matchDuration;
   gameMode = modeSelect.value;
@@ -1475,7 +1505,7 @@ document.addEventListener('keyup', (e) => {
   }
 });
 
-// ================= ROBUST INDEPENDENT MULTI-TOUCH ENGINE =================
+// ================= Robust Multi-Touch Engine =================
 const joystickZone = document.getElementById('joystickZone');
 const joystickKnob = document.getElementById('joystickKnob');
 const fireBtn = document.getElementById('fireBtn');
@@ -1489,7 +1519,6 @@ let joystickVector = { x: 0, y: 0 };
 let joystickCenter = { x: 0, y: 0 };
 const JOYSTICK_MAX_RADIUS = 42;
 
-// Active touches mapping: identifier -> { type: 'look'|'fire'|'button', lastX, lastY }
 const activeTouchMap = new Map();
 let isFireButtonHeld = false;
 const LOOK_SENSITIVITY = 0.0062;
@@ -1507,7 +1536,6 @@ function updateJoystickFromPos(clientX, clientY) {
   joystickVector.y = -knobY / JOYSTICK_MAX_RADIUS;
 }
 
-// Global Touch Handlers for Uninterrupted Look & Multi-Touch Firing
 window.addEventListener('touchstart', (e) => {
   if (!isMatchActive) return;
 
@@ -1515,7 +1543,6 @@ window.addEventListener('touchstart', (e) => {
     const t = e.changedTouches[i];
     const target = document.elementFromPoint(t.clientX, t.clientY);
 
-    // 1. Joystick Area
     if (joystickZone.contains(target)) {
       if (joystickTouchId === null) {
         joystickTouchId = t.identifier;
@@ -1527,12 +1554,10 @@ window.addEventListener('touchstart', (e) => {
       continue;
     }
 
-    // 2. Action Buttons
     if (target === fireBtn) {
       isFireButtonHeld = true;
       fireBtn.classList.add('active');
       tryShoot();
-      // Store as 'fire_look' so dragging the fire button also aims!
       activeTouchMap.set(t.identifier, { type: 'fire_look', lastX: t.clientX, lastY: t.clientY });
       continue;
     }
@@ -1568,7 +1593,6 @@ window.addEventListener('touchstart', (e) => {
       continue;
     }
 
-    // 3. Right-Screen / Free Space Look Touch
     if (t.clientX > window.innerWidth * 0.32) {
       activeTouchMap.set(t.identifier, { type: 'look', lastX: t.clientX, lastY: t.clientY });
     }
@@ -1765,7 +1789,7 @@ function animate() {
     }
   }
 
-  // Dash & Slide Timers & Smooth Camera Height Lerp
+  // Dash & Slide Timers & Camera Height Lerp
   if (isDashing) {
     dashTimeRemaining -= delta;
     currentEyeHeight = THREE.MathUtils.lerp(currentEyeHeight, DASH_EYE_HEIGHT, delta * 12);
@@ -1817,23 +1841,23 @@ function animate() {
     mesh.userData.nameTag.lookAt(camera.position);
   });
 
-  // Spatial Audio Listener Orientation
-  if (voiceAudioCtx) {
+  // Spatial Audio Listener & Proximity Updates
+  if (voiceAudioCtx && voiceAudioCtx.state === 'running') {
     const p = camera.position;
     const fwd = new THREE.Vector3();
     camera.getWorldDirection(fwd);
     const up = camera.up;
 
     if (voiceAudioCtx.listener.positionX) {
-      voiceAudioCtx.listener.positionX.value = p.x;
-      voiceAudioCtx.listener.positionY.value = p.y;
-      voiceAudioCtx.listener.positionZ.value = p.z;
-      voiceAudioCtx.listener.forwardX.value = fwd.x;
-      voiceAudioCtx.listener.forwardY.value = fwd.y;
-      voiceAudioCtx.listener.forwardZ.value = fwd.z;
-      voiceAudioCtx.listener.upX.value = up.x;
-      voiceAudioCtx.listener.upY.value = up.y;
-      voiceAudioCtx.listener.upZ.value = up.z;
+      voiceAudioCtx.listener.positionX.setTargetAtTime(p.x, voiceAudioCtx.currentTime, 0.05);
+      voiceAudioCtx.listener.positionY.setTargetAtTime(p.y, voiceAudioCtx.currentTime, 0.05);
+      voiceAudioCtx.listener.positionZ.setTargetAtTime(p.z, voiceAudioCtx.currentTime, 0.05);
+      voiceAudioCtx.listener.forwardX.setTargetAtTime(fwd.x, voiceAudioCtx.currentTime, 0.05);
+      voiceAudioCtx.listener.forwardY.setTargetAtTime(fwd.y, voiceAudioCtx.currentTime, 0.05);
+      voiceAudioCtx.listener.forwardZ.setTargetAtTime(fwd.z, voiceAudioCtx.currentTime, 0.05);
+      voiceAudioCtx.listener.upX.setTargetAtTime(up.x, voiceAudioCtx.currentTime, 0.05);
+      voiceAudioCtx.listener.upY.setTargetAtTime(up.y, voiceAudioCtx.currentTime, 0.05);
+      voiceAudioCtx.listener.upZ.setTargetAtTime(up.z, voiceAudioCtx.currentTime, 0.05);
     } else if (voiceAudioCtx.listener.setPosition) {
       voiceAudioCtx.listener.setPosition(p.x, p.y, p.z);
       voiceAudioCtx.listener.setOrientation(fwd.x, fwd.y, fwd.z, up.x, up.y, up.z);
@@ -1842,7 +1866,7 @@ function animate() {
     remoteVoices.forEach((voice, peerId) => {
       const playerMesh = remotePlayers.get(peerId);
       if (!isMatchActive || !playerMesh) {
-        if (voice.gain) voice.gain.gain.value = 1.5;
+        if (voice.gain) voice.gain.gain.value = 1.0;
         return;
       }
 
@@ -1850,21 +1874,14 @@ function animate() {
       const dist = camera.position.distanceTo(targetPos);
 
       if (voice.gain) {
-        if (dist > MAX_PROXIMITY_DIST) {
-          voice.gain.gain.value = 0;
-        } else if (dist <= MIN_PROXIMITY_DIST) {
-          voice.gain.gain.value = 2.0;
-        } else {
-          const factor = 1 - (dist - MIN_PROXIMITY_DIST) / (MAX_PROXIMITY_DIST - MIN_PROXIMITY_DIST);
-          voice.gain.gain.value = Math.max(0, Math.min(2.0, factor * 1.8));
-        }
+        voice.gain.gain.value = dist > MAX_PROXIMITY_DIST ? 0 : 1.0;
       }
 
       if (voice.panner) {
         if (voice.panner.positionX) {
-          voice.panner.positionX.value = targetPos.x;
-          voice.panner.positionY.value = targetPos.y + 1.6;
-          voice.panner.positionZ.value = targetPos.z;
+          voice.panner.positionX.setTargetAtTime(targetPos.x, voiceAudioCtx.currentTime, 0.05);
+          voice.panner.positionY.setTargetAtTime(targetPos.y + 1.6, voiceAudioCtx.currentTime, 0.05);
+          voice.panner.positionZ.setTargetAtTime(targetPos.z, voiceAudioCtx.currentTime, 0.05);
         } else if (voice.panner.setPosition) {
           voice.panner.setPosition(targetPos.x, targetPos.y + 1.6, targetPos.z);
         }
