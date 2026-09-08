@@ -56,7 +56,7 @@
     border-radius: 50%; pointer-events: none;
   }
   .sniper-reticle::before {
-    content: 'RANGE: 160m // PROX-COMMS: ARMED'; position: absolute; bottom: 20px; left: 50%;
+    content: 'RANGE: 75m // PROX-COMMS: ARMED (BOOSTED)'; position: absolute; bottom: 20px; left: 50%;
     transform: translateX(-50%); color: #00ff88; font-size: 10px; letter-spacing: 2px;
     text-shadow: 0 0 4px #00ff88;
   }
@@ -105,7 +105,7 @@
     border-radius: 4px; backdrop-filter: blur(4px);
   }
 
-  /* ================= PROXIMITY VOICE CHAT HUD TABS ================= */
+  /* Proximity Voice Chat HUD */
   #voiceSpeakerTabs {
     position: fixed; top: 72px; left: 50%; transform: translateX(-50%);
     display: flex; gap: 8px; align-items: center; justify-content: center;
@@ -127,9 +127,7 @@
   }
   .voice-tab.muted { opacity: 0.55; }
   .voice-tab-icon { font-size: 12px; }
-  .voice-tab.speaking .voice-tab-icon {
-    filter: drop-shadow(0 0 6px #00ff88);
-  }
+  .voice-tab.speaking .voice-tab-icon { filter: drop-shadow(0 0 6px #00ff88); }
   .voice-tab-dist {
     font-size: 9px; padding: 1px 4px; border-radius: 2px;
     background: rgba(0, 229, 255, 0.15); color: #00e5ff;
@@ -320,74 +318,77 @@
     #portraitWarning { display: flex; }
   }
 
-  /* Mobile Controls */
+  /* Multi-Touch Mobile Controls */
   #touchControls {
     display: none; position: fixed; inset: 0; pointer-events: none; z-index: 14;
   }
   .touch-device #touchControls { display: block; }
 
+  /* Dedicated Left Touch Zone for Virtual Joystick */
   #joystickZone {
-    position: absolute; bottom: 24px; left: 24px;
-    width: 130px; height: 130px; pointer-events: auto;
+    position: absolute; bottom: 20px; left: 20px;
+    width: 140px; height: 140px; pointer-events: auto;
+    touch-action: none;
   }
   #joystickBase {
     position: absolute; width: 100%; height: 100%; border-radius: 50%;
-    background: rgba(0, 229, 255, 0.2); border: 2px solid rgba(0, 229, 255, 0.6);
+    background: rgba(0, 229, 255, 0.15); border: 2px solid rgba(0, 229, 255, 0.5);
     box-sizing: border-box; display: flex; align-items: center; justify-content: center;
   }
   #joystickKnob {
     width: 52px; height: 52px; border-radius: 50%;
-    background: rgba(0, 229, 255, 0.8); box-shadow: 0 0 12px #00e5ff;
-    pointer-events: none;
+    background: rgba(0, 229, 255, 0.85); box-shadow: 0 0 12px #00e5ff;
+    pointer-events: none; will-change: transform;
+  }
+
+  /* Dedicated Right Screen Touch Zone for Camera Pan / Aim */
+  #touchLookZone {
+    position: absolute; top: 0; right: 0; width: 65%; height: 100%;
+    pointer-events: auto; touch-action: none; z-index: 1;
+  }
+
+  /* Action Buttons Over the Look Zone */
+  .touch-btn {
+    position: absolute; pointer-events: auto; touch-action: none;
+    z-index: 2; display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; font-family: inherit; font-weight: bold;
+    user-select: none; -webkit-user-select: none;
   }
 
   #fireBtn {
-    position: absolute; bottom: 30px; right: 30px;
-    width: 82px; height: 82px; border-radius: 50%;
-    background: rgba(255, 43, 214, 0.7); border: 3px solid #ff2bd6;
-    color: #fff; font-size: 16px; font-weight: bold;
-    display: flex; align-items: center; justify-content: center;
-    pointer-events: auto; text-shadow: 0 0 8px #ff2bd6; box-shadow: 0 0 16px rgba(255, 43, 214, 0.5);
+    bottom: 28px; right: 28px; width: 84px; height: 84px;
+    background: rgba(255, 43, 214, 0.65); border: 3px solid #ff2bd6;
+    color: #fff; font-size: 16px; text-shadow: 0 0 8px #ff2bd6;
+    box-shadow: 0 0 16px rgba(255, 43, 214, 0.5);
   }
-  #fireBtn:active { background: rgba(255, 43, 214, 0.95); transform: scale(0.95); }
+  #fireBtn.active, #fireBtn:active { background: rgba(255, 43, 214, 0.95); transform: scale(0.95); }
 
   #adsBtn {
-    position: absolute; bottom: 30px; right: 125px;
-    width: 64px; height: 64px; border-radius: 50%;
-    background: rgba(0, 229, 255, 0.25); border: 2px solid #00e5ff;
-    color: #00e5ff; font-size: 13px; font-weight: bold;
-    display: flex; align-items: center; justify-content: center;
-    pointer-events: auto; text-shadow: 0 0 5px #00e5ff;
+    bottom: 30px; right: 126px; width: 64px; height: 64px;
+    background: rgba(0, 229, 255, 0.2); border: 2px solid #00e5ff;
+    color: #00e5ff; font-size: 13px; text-shadow: 0 0 5px #00e5ff;
   }
-  #adsBtn:active, #adsBtn.active { background: rgba(0, 229, 255, 0.6); }
+  #adsBtn.active, #adsBtn:active { background: rgba(0, 229, 255, 0.6); }
 
   #reloadBtn {
-    position: absolute; bottom: 125px; right: 42px;
-    width: 56px; height: 56px; border-radius: 50%;
-    background: rgba(10, 15, 30, 0.7); border: 2px solid rgba(0, 229, 255, 0.9);
-    color: #00e5ff; font-size: 11px; font-weight: bold;
-    display: flex; align-items: center; justify-content: center;
-    pointer-events: auto; text-shadow: 0 0 5px #00e5ff;
+    bottom: 126px; right: 38px; width: 58px; height: 58px;
+    background: rgba(10, 15, 30, 0.75); border: 2px solid rgba(0, 229, 255, 0.9);
+    color: #00e5ff; font-size: 11px; text-shadow: 0 0 5px #00e5ff;
   }
-  #reloadBtn:active { background: rgba(0, 229, 255, 0.4); }
+  #reloadBtn:active { background: rgba(0, 229, 255, 0.45); }
 
   #jumpBtn {
-    position: absolute; bottom: 125px; right: 110px;
-    width: 56px; height: 56px; border-radius: 50%;
-    background: rgba(10, 15, 30, 0.7); border: 2px solid rgba(255, 221, 68, 0.9);
-    color: #ffdd44; font-size: 11px; font-weight: bold;
-    display: flex; align-items: center; justify-content: center;
-    pointer-events: auto; text-shadow: 0 0 5px #ffdd44;
+    bottom: 126px; right: 112px; width: 58px; height: 58px;
+    background: rgba(10, 15, 30, 0.75); border: 2px solid rgba(255, 221, 68, 0.9);
+    color: #ffdd44; font-size: 11px; text-shadow: 0 0 5px #ffdd44;
   }
-  #jumpBtn:active { background: rgba(255, 221, 68, 0.4); }
+  #jumpBtn:active { background: rgba(255, 221, 68, 0.45); }
 
   #micTouchBtn {
-    position: absolute; bottom: 175px; left: 32px;
-    width: 50px; height: 50px; border-radius: 50%;
+    bottom: 180px; left: 30px; width: 52px; height: 52px;
     background: rgba(10, 15, 30, 0.85); border: 2px solid #00ff88;
-    color: #00ff88; font-size: 18px; font-weight: bold;
-    display: flex; align-items: center; justify-content: center;
-    pointer-events: auto; text-shadow: 0 0 8px #00ff88; box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
+    color: #00ff88; font-size: 18px; text-shadow: 0 0 8px #00ff88;
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
   }
   #micTouchBtn.muted {
     border-color: #ff3355; color: #ff3355; box-shadow: 0 0 10px rgba(255, 51, 85, 0.4);
@@ -444,29 +445,31 @@
   <div class="slot" id="slot3">4<br>SNIP</div>
 </div>
 
+<!-- Multi-Touch UI Layers -->
 <div id="touchControls">
+  <div id="touchLookZone"></div>
   <div id="joystickZone">
     <div id="joystickBase">
       <div id="joystickKnob"></div>
     </div>
   </div>
-  <div id="fireBtn">FIRE</div>
-  <div id="adsBtn">AIM</div>
-  <div id="reloadBtn">RELOAD</div>
-  <div id="jumpBtn">JUMP</div>
-  <div id="micTouchBtn">🎙️</div>
+  <div id="fireBtn" class="touch-btn">FIRE</div>
+  <div id="adsBtn" class="touch-btn">AIM</div>
+  <div id="reloadBtn" class="touch-btn">RELOAD</div>
+  <div id="jumpBtn" class="touch-btn">JUMP</div>
+  <div id="micTouchBtn" class="touch-btn">🎙️</div>
 </div>
 
 <!-- ENTRY MODAL -->
 <div id="entryModal" class="modal-overlay">
   <div class="panel">
     <h1>CYBER DISTRICT // RED VS BLUE</h1>
-    <p style="color:#aaccff;">Urban Team Tactical FPS &bull; Proximity Voice Mesh &bull; WebRTC</p>
+    <p style="color:#aaccff;">Urban Team Tactical FPS &bull; 75m Boosted Proximity Mesh &bull; WebRTC</p>
     <div class="mp-row">
       <input type="text" id="playerNameInput" class="mp-input" placeholder="Operative Call-sign" maxlength="12" style="width: 220px;" />
       <input type="text" id="roomCodeInput" class="mp-input" placeholder="Room Code (eg: 777)" maxlength="8" style="width: 160px;" />
     </div>
-    <div style="font-size: 11px; color: #00ff88; margin-top: 6px;">🎙️ 3D Proximity Voice Chat Enabled (Headphones Recommended)</div>
+    <div style="font-size: 11px; color: #00ff88; margin-top: 6px;">🎙️ 75m 3D Spatial Proximity Voice Active (Headphones Recommended)</div>
     <div class="mp-row" style="margin-top: 18px;">
       <button class="btn-play" id="enterLobbyBtn">CONNECT TO LOBBY</button>
       <button class="btn-secondary" id="soloLobbyBtn">SOLO BOT MATCH</button>
@@ -480,7 +483,7 @@
     <h1>TACTICAL MISSION LOBBY</h1>
     <p style="color:#8899aa; font-size:12px;">ROOM: <span id="lobbyRoomTitle" style="color:#00e5ff; font-weight:bold;">SECTOR-7</span> &bull; <span id="lobbyRoleTitle">WAITING FOR OPERATIVES</span></p>
     
-    <!-- Host Configuration Controls (Editable by Host Only) -->
+    <!-- Host Configuration Controls -->
     <div id="hostConfigRow" class="mp-row" style="background: rgba(10,15,25,0.7); padding: 10px; border-radius: 4px; border: 1px solid #334466;">
       <div style="display:flex; align-items:center; gap:8px;">
         <span style="font-size:12px; color:#ffdd44;">MATCH TIME:</span>
@@ -678,13 +681,13 @@ function createContainerTexture(label = 'MAERSK-CYBER', colorHex = '#1a3b5c', ac
   return new THREE.CanvasTexture(canvas);
 }
 
-function createCyberRoadTexture(accentColorHex, asphaltColor = '#1d212b') {
+function createCyberRoadTexture(accentColorHex, asphaltColor = '#171a24') {
   const canvas = document.createElement('canvas');
   canvas.width = 512; canvas.height = 512;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = asphaltColor; ctx.fillRect(0, 0, 512, 512);
 
-  ctx.strokeStyle = '#292f3d'; ctx.lineWidth = 2;
+  ctx.strokeStyle = '#222834'; ctx.lineWidth = 2;
   for (let x = 0; x < 512; x += 32) {
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 512); ctx.stroke();
   }
@@ -693,9 +696,9 @@ function createCyberRoadTexture(accentColorHex, asphaltColor = '#1d212b') {
   }
 
   ctx.fillStyle = accentColorHex;
-  ctx.fillRect(8, 0, 10, 512); ctx.fillRect(512 - 18, 0, 10, 512);
-  for (let y = 20; y < 512; y += 80) {
-    ctx.fillRect(250, y, 12, 40);
+  ctx.fillRect(8, 0, 8, 512); ctx.fillRect(512 - 16, 0, 8, 512);
+  for (let y = 20; y < 512; y += 70) {
+    ctx.fillRect(252, y, 8, 35);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -704,7 +707,7 @@ function createCyberRoadTexture(accentColorHex, asphaltColor = '#1d212b') {
   return texture;
 }
 
-function createBuildingFacadeTexture(baseColorHex, litColorHex, density = 0.55) {
+function createBuildingFacadeTexture(baseColorHex, litColorHex, density = 0.6) {
   const canvas = document.createElement('canvas');
   canvas.width = 512; canvas.height = 512;
   const ctx = canvas.getContext('2d');
@@ -740,74 +743,77 @@ function createNeonSignTexture(text, subtext, colorHex) {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#090c14'; ctx.fillRect(0, 0, 512, 256);
   ctx.strokeStyle = colorHex; ctx.lineWidth = 8; ctx.strokeRect(12, 12, 488, 232);
-  ctx.fillStyle = colorHex; ctx.font = 'bold 40px Courier New'; ctx.textAlign = 'center'; ctx.fillText(text, 256, 110);
-  ctx.fillStyle = '#ffffff'; ctx.font = 'bold 20px Courier New'; ctx.fillText(subtext, 256, 160);
+  ctx.fillStyle = colorHex; ctx.font = 'bold 38px Courier New'; ctx.textAlign = 'center'; ctx.fillText(text, 256, 110);
+  ctx.fillStyle = '#ffffff'; ctx.font = 'bold 18px Courier New'; ctx.fillText(subtext, 256, 160);
   return new THREE.CanvasTexture(canvas);
 }
 
-const woodCrateTex = createHazardCrateTexture('CARGO // ALPHA', '#583f21', '#ffaa00');
-const bunkerCrateTex = createHazardCrateTexture('SECURITY PROTOCOL', '#22382c', '#00ff88');
-const texDarkSlate = createBuildingFacadeTexture('#121622', '#00e5ff', 0.6);
+const woodCrateTex = createHazardCrateTexture('CARGO // 01', '#583f21', '#ffaa00');
+const bunkerCrateTex = createHazardCrateTexture('ARMORY // 02', '#22382c', '#00ff88');
+const containerBlueTex = createContainerTexture('KENDACHI-LOGISTICS', '#102238', '#00e5ff');
+const containerRedTex = createContainerTexture('NIGHTCORP-FREIGHT', '#38101a', '#ff3355');
+
+const texDarkSlate = createBuildingFacadeTexture('#121622', '#00e5ff', 0.65);
 const texDarkGold = createBuildingFacadeTexture('#1f1a10', '#ffcc00', 0.65);
 const texDarkMaroon = createBuildingFacadeTexture('#22121c', '#ff2bd6', 0.6);
 const texDarkForest = createBuildingFacadeTexture('#101c15', '#00ff88', 0.55);
-const texDarkObsidian = createBuildingFacadeTexture('#0f1118', '#00e5ff', 0.65);
+const texDarkObsidian = createBuildingFacadeTexture('#0f1118', '#00e5ff', 0.7);
 
 // ================= Scene Setup =================
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x111422);
-scene.fog = new THREE.FogExp2(0x111422, 0.007);
+scene.background = new THREE.Color(0x0e111d);
+scene.fog = new THREE.FogExp2(0x0e111d, 0.009);
 
 const DEFAULT_FOV = 75;
 const camera = new THREE.PerspectiveCamera(DEFAULT_FOV, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.rotation.order = 'YXZ';
-camera.position.set(-45, 2.0, -10);
+camera.position.set(-46, 2.0, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.4;
+renderer.toneMappingExposure = 1.45;
 document.body.appendChild(renderer.domElement);
 
-const ambient = new THREE.AmbientLight(0x727d9c, 1.6);
+const ambient = new THREE.AmbientLight(0x75809c, 1.6);
 scene.add(ambient);
-const hemi = new THREE.HemisphereLight(0x8cb0e8, 0x222430, 1.4);
+const hemi = new THREE.HemisphereLight(0x90b4ea, 0x1c1e28, 1.4);
 scene.add(hemi);
 
-const moon = new THREE.DirectionalLight(0xdbe6ff, 2.2);
-moon.position.set(130, 180, 80);
+const moon = new THREE.DirectionalLight(0xd8e4ff, 2.4);
+moon.position.set(90, 140, 60);
 moon.castShadow = true;
 moon.shadow.mapSize.set(2048, 2048);
-moon.shadow.camera.left = -160;
-moon.shadow.camera.right = 160;
-moon.shadow.camera.top = 160;
-moon.shadow.camera.bottom = -160;
+moon.shadow.camera.left = -90;
+moon.shadow.camera.right = 90;
+moon.shadow.camera.top = 90;
+moon.shadow.camera.bottom = -90;
 scene.add(moon);
 
 function addNeonPoint(color, x, y, z, intensity, dist) {
   const light = new THREE.PointLight(color, intensity, dist);
   light.position.set(x, y, z);
   scene.add(light);
-  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.35, 8, 8), new THREE.MeshBasicMaterial({ color }));
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshBasicMaterial({ color }));
   bulb.position.copy(light.position);
   scene.add(bulb);
   return light;
 }
 
-addNeonPoint(0x00e5ff, -45, 12, -40, 5.0, 95);
-addNeonPoint(0xffdd00, -25, 14, -55, 5.5, 90);
-addNeonPoint(0xff2bd6, 68, 12, -35, 5.0, 90);
-addNeonPoint(0xffaa00, 62, 10, 45, 5.5, 90);
-addNeonPoint(0x00ff88, -42, 6, 20, 4.0, 75);
-addNeonPoint(0x00e5ff, 5, 12, 25, 4.5, 80);
-addNeonPoint(0xff0055, -28, 6, 48, 4.5, 60);
-addNeonPoint(0x00ffff, 10, 8, -56, 4.5, 65);
+addNeonPoint(0xff3355, -42, 10, -15, 6.0, 70);
+addNeonPoint(0x00e5ff, 42, 10, 15, 6.0, 70);
+addNeonPoint(0xff2bd6, 0, 12, 0, 6.5, 75);
+addNeonPoint(0xffdd00, 0, 10, -30, 5.0, 60);
+addNeonPoint(0x00ff88, 0, 10, 30, 5.0, 60);
+addNeonPoint(0x00e5ff, -22, 8, -26, 4.5, 50);
+addNeonPoint(0xff2bd6, 22, 8, 26, 4.5, 50);
 
-// ================= Arena Bounds, Elevations & Continuous Terrain =================
-const HALF_W = 100;
-const HALF_D = 84;
+// ================= DENSE ARENA ARCHITECTURE =================
+// Map Dimensions: Compact, densely packed cyberpunk tactical CQB sector
+const HALF_W = 54;
+const HALF_D = 44;
 const colliders = [];
 
 function addCollider(x, y, z, w, h, d) {
@@ -818,24 +824,17 @@ function heightAt(x, z) {
   const u = (x + HALF_W) / (HALF_W * 2);
   const v = (z + HALF_D) / (HALF_D * 2);
 
-  const yNW = 0.0;
-  const ySW = -5.5;
-  const yNE = 3.8;
-  const ySE = 5.2;
-
+  const yNW = 0.0, ySW = -2.5, yNE = 2.0, ySE = 3.0;
   const topY = THREE.MathUtils.lerp(yNW, yNE, u);
   const botY = THREE.MathUtils.lerp(ySW, ySE, u);
   let baseH = THREE.MathUtils.lerp(topY, botY, v);
 
-  const wave = Math.sin(x * 0.045) * 0.85 + Math.cos(z * 0.045) * 0.85;
+  const wave = Math.sin(x * 0.08) * 0.45 + Math.cos(z * 0.08) * 0.45;
   return baseH + wave;
 }
 
-const terrainSegmentsX = 120;
-const terrainSegmentsZ = 100;
-const terrainGeo = new THREE.PlaneGeometry(HALF_W * 2 + 10, HALF_D * 2 + 10, terrainSegmentsX, terrainSegmentsZ);
+const terrainGeo = new THREE.PlaneGeometry(HALF_W * 2 + 6, HALF_D * 2 + 6, 80, 70);
 terrainGeo.rotateX(-Math.PI / 2);
-
 const posAttr = terrainGeo.attributes.position;
 for (let i = 0; i < posAttr.count; i++) {
   const vx = posAttr.getX(i);
@@ -844,19 +843,16 @@ for (let i = 0; i < posAttr.count; i++) {
 }
 terrainGeo.computeVertexNormals();
 
-const masterRoadTex = createCyberRoadTexture('#00e5ff', '#161922');
-masterRoadTex.repeat.set(24, 20);
-const terrainMat = new THREE.MeshStandardMaterial({ 
-  map: masterRoadTex, 
-  roughness: 0.35, 
-  metalness: 0.5 
-});
-const terrainMesh = new THREE.Mesh(terrainGeo, terrainMat);
+const masterRoadTex = createCyberRoadTexture('#00e5ff', '#141720');
+masterRoadTex.repeat.set(16, 14);
+const terrainMesh = new THREE.Mesh(terrainGeo, new THREE.MeshStandardMaterial({ 
+  map: masterRoadTex, roughness: 0.35, metalness: 0.4 
+}));
 terrainMesh.receiveShadow = true;
 scene.add(terrainMesh);
 
 function addPerimeterWall(w, h, d, x, y, z) {
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x141824, roughness: 0.85, metalness: 0.2 });
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x121622, roughness: 0.85, metalness: 0.2 });
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
   mesh.position.set(x, y, z);
   mesh.receiveShadow = true;
@@ -867,12 +863,12 @@ function addPerimeterWall(w, h, d, x, y, z) {
   trim.position.set(x, y + h / 2 + 0.25, z);
   scene.add(trim);
 }
-addPerimeterWall(HALF_W * 2 + 8, 38, 2, 0, 10, -HALF_D - 1);
-addPerimeterWall(HALF_W * 2 + 8, 38, 2, 0, 10, HALF_D + 1);
-addPerimeterWall(2, 38, HALF_D * 2 + 8, -HALF_W - 1, 10, 0);
-addPerimeterWall(2, 38, HALF_D * 2 + 8, HALF_W + 1, 10, 0);
+addPerimeterWall(HALF_W * 2 + 4, 30, 2, 0, 10, -HALF_D - 1);
+addPerimeterWall(HALF_W * 2 + 4, 30, 2, 0, 10, HALF_D + 1);
+addPerimeterWall(2, 30, HALF_D * 2 + 4, -HALF_W - 1, 10, 0);
+addPerimeterWall(2, 30, HALF_D * 2 + 4, HALF_W + 1, 10, 0);
 
-function addFoundation(w, d, x, z, bottomH = -18) {
+function addFoundation(w, d, x, z, bottomH = -16) {
   const midY = (heightAt(x, z) + bottomH) / 2;
   const skirtH = Math.abs(heightAt(x, z) - bottomH) + 2;
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, skirtH, d), new THREE.MeshStandardMaterial({ color: 0x090b10, roughness: 0.9 }));
@@ -890,12 +886,11 @@ function addDenseBuilding(w, h, d, x, z, mat, roofTrimColor = 0x00e5ff) {
   mesh.receiveShadow = true;
   scene.add(mesh);
   addCollider(x, baseY + h / 2, z, w, h, d);
-  addFoundation(w + 0.2, d + 0.2, x, z, baseY - 20);
+  addFoundation(w + 0.2, d + 0.2, x, z, baseY - 16);
 
   const trim = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, 0.4, d + 0.2), new THREE.MeshBasicMaterial({ color: roofTrimColor }));
   trim.position.set(x, baseY + h + 0.2, z);
   scene.add(trim);
-
   return mesh;
 }
 
@@ -905,54 +900,18 @@ function addNeonBillboard(x, y, z, w, h, text, subtext, colorHex, rotY = 0) {
   scene.add(mesh);
 }
 
-// Buildings & City Landmarks
-const westBldgMat = new THREE.MeshStandardMaterial({ map: texDarkSlate, roughness: 0.35, metalness: 0.6 });
-addDenseBuilding(28, 42, 54, -84, -48, westBldgMat, 0x00e5ff);
-addNeonBillboard(-69.5, heightAt(-69.5, -48) + 16, -48, 22, 6, 'NIGHT CORP // 07', 'RED FORWARD BASE', '#ff3355', -Math.PI / 2);
-
-addDenseBuilding(28, 38, 54, -84, 12, new THREE.MeshStandardMaterial({ map: texDarkForest, roughness: 0.4 }), 0x00ff88);
-addDenseBuilding(28, 45, 42, -84, 60, new THREE.MeshStandardMaterial({ map: texDarkObsidian, roughness: 0.3 }), 0x00e5ff);
-
-const northYellowMat = new THREE.MeshStandardMaterial({ map: texDarkGold, roughness: 0.4, metalness: 0.6 });
-addDenseBuilding(38, 32, 40, -32, -54, northYellowMat, 0xffdd00);
-addNeonBillboard(-32, heightAt(-32, -33.8) + 12, -33.8, 22, 5, 'NEXUS RESEARCH', 'CYBERNETIC BIO-SYS // LABS', '#ffdd00', 0);
-
-const centerMat = new THREE.MeshStandardMaterial({ map: texDarkMaroon, roughness: 0.35, metalness: 0.55 });
-addDenseBuilding(42, 24, 68, 5, 20, centerMat, 0xff2bd6);
-addNeonBillboard(5, heightAt(5, -14.2) + 10, -14.2, 26, 5.5, 'SECTOR 07 TRANSIT', 'CENTRAL TACTICAL ARENA', '#ff2bd6', 0);
-
-const southeastMat = new THREE.MeshStandardMaterial({ map: texDarkGold, roughness: 0.35, metalness: 0.65 });
-addDenseBuilding(40, 30, 48, 62, 46, southeastMat, 0xffaa00);
-addNeonBillboard(41.8, heightAt(41.8, 46) + 11, 46, 24, 5, 'KENDACHI DATA', 'BLUE FORWARD BASE', '#00e5ff', -Math.PI / 2);
-
-const northeastMat = new THREE.MeshStandardMaterial({ map: texDarkMaroon, roughness: 0.35, metalness: 0.7 });
-addDenseBuilding(34, 36, 54, 80, -38, northeastMat, 0xff2bd6);
-addNeonBillboard(62.8, heightAt(62.8, -38) + 14, -38, 22, 5.5, 'ARASAKA HQ', 'ORBITAL SURVEILLANCE', '#00e5ff', -Math.PI / 2);
-
-// Reactor Tower
-{
-  const cx = 45, cz = -50, radius = 17, towerH = 28;
-  const baseY = heightAt(cx, cz);
-  const tower = new THREE.Mesh(
-    new THREE.CylinderGeometry(radius, radius, towerH, 36),
-    new THREE.MeshStandardMaterial({ map: texDarkObsidian, roughness: 0.3, metalness: 0.7 })
-  );
-  tower.position.set(cx, baseY + towerH / 2, cz);
-  tower.castShadow = true; tower.receiveShadow = true;
-  scene.add(tower);
-  addCollider(cx, baseY + towerH / 2, cz, radius * 2, towerH, radius * 2);
-  addFoundation(radius * 2 + 1, radius * 2 + 1, cx, cz, baseY - 20);
-
-  for (let r = 1; r <= 3; r++) {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(radius + 0.3, 0.25, 8, 36), new THREE.MeshBasicMaterial({ color: 0x00e5ff }));
-    ring.rotation.x = Math.PI / 2;
-    ring.position.set(cx, baseY + r * 7, cz);
-    scene.add(ring);
-  }
+function addCoverObject(w, h, d, x, z, mat = woodCoverMat) {
+  const y = heightAt(x, z);
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  mesh.position.set(x, y + h / 2, z);
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  scene.add(mesh);
+  addCollider(x, y + h / 2, z, w, h, d);
+  addFoundation(w + 0.1, d + 0.1, x, z, y - 4);
+  return mesh;
 }
 
-// Coolant Towers & Cover Objects
-function addWaterCoolantTower(x, z, radius = 4.5, tankH = 6.5, legH = 9, accentHex = 0x00e5ff) {
+function addWaterCoolantTower(x, z, radius = 3.6, tankH = 5.5, legH = 7.0, accentHex = 0x00e5ff) {
   const baseY = heightAt(x, z);
   const group = new THREE.Group();
   group.position.set(x, baseY, z);
@@ -961,7 +920,7 @@ function addWaterCoolantTower(x, z, radius = 4.5, tankH = 6.5, legH = 9, accentH
   const darkLegMat = new THREE.MeshStandardMaterial({ color: 0x181e2b, metalness: 0.9, roughness: 0.4 });
 
   const legOffset = radius * 0.75;
-  const legGeo = new THREE.CylinderGeometry(0.35, 0.45, legH, 8);
+  const legGeo = new THREE.CylinderGeometry(0.3, 0.4, legH, 8);
   const legPositions = [[-legOffset, -legOffset], [legOffset, -legOffset], [-legOffset, legOffset], [legOffset, legOffset]];
 
   legPositions.forEach(([lx, lz]) => {
@@ -969,30 +928,25 @@ function addWaterCoolantTower(x, z, radius = 4.5, tankH = 6.5, legH = 9, accentH
     leg.position.set(lx, legH / 2, lz);
     leg.castShadow = true;
     group.add(leg);
-    addCollider(x + lx, baseY + legH / 2, z + lz, 0.9, legH, 0.9);
+    addCollider(x + lx, baseY + legH / 2, z + lz, 0.8, legH, 0.8);
   });
 
-  const ringPlatform = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.1, radius * 1.1, 0.5, 16), metalMat);
-  ringPlatform.position.y = legH;
-  group.add(ringPlatform);
-  addCollider(x, baseY + legH + 0.25, z, radius * 2.2, 0.5, radius * 2.2);
-
-  const tank = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, tankH, 24), metalMat);
-  tank.position.y = legH + tankH / 2 + 0.25;
+  const tank = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, tankH, 20), metalMat);
+  tank.position.y = legH + tankH / 2;
   tank.castShadow = true;
   group.add(tank);
 
   const dome = new THREE.Mesh(new THREE.SphereGeometry(radius, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2), metalMat);
-  dome.position.y = legH + tankH + 0.25;
+  dome.position.y = legH + tankH;
   group.add(dome);
 
-  const glowRing = new THREE.Mesh(new THREE.TorusGeometry(radius + 0.15, 0.2, 8, 24), new THREE.MeshBasicMaterial({ color: accentHex }));
+  const glowRing = new THREE.Mesh(new THREE.TorusGeometry(radius + 0.12, 0.2, 8, 20), new THREE.MeshBasicMaterial({ color: accentHex }));
   glowRing.rotation.x = Math.PI / 2;
   glowRing.position.y = legH + tankH * 0.5;
   group.add(glowRing);
 
   addCollider(x, baseY + legH + tankH / 2, z, radius * 2, tankH, radius * 2);
-  addFoundation(radius * 2, radius * 2, x, z, baseY - 6);
+  addFoundation(radius * 2, radius * 2, x, z, baseY - 4);
   scene.add(group);
 }
 
@@ -1003,57 +957,87 @@ function addHoloPlaza(x, z) {
   group.position.set(x, baseY, z);
 
   const baseMat = new THREE.MeshStandardMaterial({ color: 0x171d2b, roughness: 0.5, metalness: 0.5 });
-  const step1 = new THREE.Mesh(new THREE.CylinderGeometry(6.5, 7.0, 0.6, 8), baseMat); step1.position.y = 0.3;
-  const step2 = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.6, 0.6, 8), baseMat); step2.position.y = 0.8;
-  group.add(step1, step2);
+  const step1 = new THREE.Mesh(new THREE.CylinderGeometry(5.0, 5.5, 0.6, 8), baseMat); step1.position.y = 0.3;
+  group.add(step1);
 
-  const projRing = new THREE.Mesh(new THREE.TorusGeometry(2.4, 0.2, 8, 24), new THREE.MeshBasicMaterial({ color: 0x00e5ff }));
-  projRing.rotation.x = Math.PI / 2; projRing.position.y = 1.15;
+  const projRing = new THREE.Mesh(new THREE.TorusGeometry(2.0, 0.15, 8, 20), new THREE.MeshBasicMaterial({ color: 0x00e5ff }));
+  projRing.rotation.x = Math.PI / 2; projRing.position.y = 0.65;
   group.add(projRing);
 
-  holoGemMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1.6, 0), new THREE.MeshBasicMaterial({ color: 0x00e5ff, wireframe: true }));
-  holoGemMesh.position.y = 3.6;
+  holoGemMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1.4, 0), new THREE.MeshBasicMaterial({ color: 0x00e5ff, wireframe: true }));
+  holoGemMesh.position.y = 2.4;
   group.add(holoGemMesh);
 
   scene.add(group);
-  addCollider(x, baseY + 0.6, z, 9.0, 1.2, 9.0);
-  addFoundation(9.5, 9.5, x, z, baseY - 6);
+  addCollider(x, baseY + 0.3, z, 7.0, 0.8, 7.0);
+  addFoundation(7.5, 7.5, x, z, baseY - 4);
 }
 
-addWaterCoolantTower(-52, 68, 4.2, 6.0, 8.0, 0x00ff88);
-addWaterCoolantTower(28, -72, 4.0, 6.5, 8.5, 0x00e5ff);
-addWaterCoolantTower(34, 72, 4.2, 6.0, 8.0, 0xff2bd6);
-addHoloPlaza(10, -56);
+// ---------------- Dense Map Building Placements ----------------
+// 1. Red Base (West HQ & Sub-Complex)
+addDenseBuilding(18, 28, 22, -40, -18, new THREE.MeshStandardMaterial({ map: texDarkSlate, roughness: 0.35, metalness: 0.6 }), 0xff3355);
+addNeonBillboard(-30.9, heightAt(-30.9, -18) + 12, -18, 16, 5, 'NIGHT CORP // 07', 'RED SQUAD COMMAND', '#ff3355', Math.PI / 2);
 
+addDenseBuilding(16, 22, 20, -40, 20, new THREE.MeshStandardMaterial({ map: texDarkForest, roughness: 0.4 }), 0xff3355);
+addNeonBillboard(-31.9, heightAt(-31.9, 20) + 10, 20, 14, 4.5, 'REACTOR SUB-01', 'WEAPONS DEPOT', '#ff3355', Math.PI / 2);
+
+// 2. Blue Base (East HQ & Sub-Complex)
+addDenseBuilding(18, 28, 22, 40, 18, new THREE.MeshStandardMaterial({ map: texDarkGold, roughness: 0.35, metalness: 0.65 }), 0x00e5ff);
+addNeonBillboard(30.9, heightAt(30.9, 18) + 12, 18, 16, 5, 'KENDACHI DATA', 'BLUE SQUAD COMMAND', '#00e5ff', -Math.PI / 2);
+
+addDenseBuilding(16, 22, 20, 40, -20, new THREE.MeshStandardMaterial({ map: texDarkMaroon, roughness: 0.35, metalness: 0.7 }), 0x00e5ff);
+addNeonBillboard(31.9, heightAt(31.9, -20) + 10, -20, 14, 4.5, 'ARASAKA UPLINK', 'TACTICAL COMMS', '#00e5ff', -Math.PI / 2);
+
+// 3. Central Mega Tower & Urban Hub
+addDenseBuilding(16, 26, 18, 0, 0, new THREE.MeshStandardMaterial({ map: texDarkObsidian, roughness: 0.3, metalness: 0.7 }), 0xff2bd6);
+addNeonBillboard(0, heightAt(0, -9.1) + 12, -9.1, 14, 4.5, 'SECTOR CENTRAL', 'TACTICAL CHOKEPOINT', '#ff2bd6', 0);
+addNeonBillboard(0, heightAt(0, 9.1) + 12, 9.1, 14, 4.5, 'CYBER DISTRICT', 'STREET ACCESS', '#ff2bd6', Math.PI);
+
+// 4. North & South Flanking Facilities
+addDenseBuilding(24, 20, 14, 0, -34, new THREE.MeshStandardMaterial({ map: texDarkGold, roughness: 0.4 }), 0xffdd00);
+addNeonBillboard(0, heightAt(0, -26.9) + 9, -26.9, 18, 4.5, 'NEXUS RESEARCH', 'BIO-TECH DIV', '#ffdd00', 0);
+
+addDenseBuilding(24, 20, 14, 0, 34, new THREE.MeshStandardMaterial({ map: texDarkForest, roughness: 0.4 }), 0x00ff88);
+addNeonBillboard(0, heightAt(0, 26.9) + 9, 26.9, 18, 4.5, 'TRANSIT DEPOT', 'CARGO ACCESS', '#00ff88', Math.PI);
+
+// 5. Urban Coolant & Hologram Monuments
+addWaterCoolantTower(-22, -26, 3.4, 5.0, 6.5, 0x00e5ff);
+addWaterCoolantTower(22, 26, 3.4, 5.0, 6.5, 0xff2bd6);
+addHoloPlaza(-18, 20);
+addHoloPlaza(18, -20);
+
+// 6. High-Density Tactical Cover Barricades & Freight Containers
 const concreteCoverMat = new THREE.MeshStandardMaterial({ map: bunkerCrateTex, roughness: 0.6, metalness: 0.4 });
 const woodCoverMat = new THREE.MeshStandardMaterial({ map: woodCrateTex, roughness: 0.7, metalness: 0.3 });
-function addCoverObject(w, h, d, x, z, mat = woodCoverMat) {
-  const y = heightAt(x, z);
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-  mesh.position.set(x, y + h / 2, z);
-  mesh.castShadow = true; mesh.receiveShadow = true;
-  scene.add(mesh);
-  addCollider(x, y + h / 2, z, w, h, d);
-  addFoundation(w + 0.1, d + 0.1, x, z, y - 6);
-  return mesh;
-}
-addCoverObject(3.0, 1.6, 12.0, -32, 2, concreteCoverMat);
-addCoverObject(7.0, 1.5, 3.0, -36, 10, concreteCoverMat);
-addCoverObject(4.0, 1.4, 4.0, -26, 4, woodCoverMat);
-addCoverObject(10.0, 1.6, 3.2, -48, 44, concreteCoverMat);
-addCoverObject(3.2, 1.6, 9.0, -42, 52, concreteCoverMat);
-addCoverObject(5.0, 1.4, 5.0, -54, 48, woodCoverMat);
-addCoverObject(7.0, 1.4, 2.5, -34, -26, woodCoverMat);
-addCoverObject(3.0, 1.5, 8.0, 32, 18, concreteCoverMat);
-addCoverObject(7.0, 1.5, 3.0, 36, -10, woodCoverMat);
-addCoverObject(3.0, 1.5, 7.0, 34, 58, woodCoverMat);
+const containerBlueMat = new THREE.MeshStandardMaterial({ map: containerBlueTex, roughness: 0.5, metalness: 0.5 });
+const containerRedMat = new THREE.MeshStandardMaterial({ map: containerRedTex, roughness: 0.5, metalness: 0.5 });
+
+// Containers
+addCoverObject(3.2, 3.0, 7.5, -20, -5, containerRedMat);
+addCoverObject(3.2, 3.0, 7.5, 20, 5, containerBlueMat);
+addCoverObject(7.5, 3.0, 3.2, -18, -14, containerRedMat);
+addCoverObject(7.5, 3.0, 3.2, 18, 14, containerBlueMat);
+
+// Urban Barricades & Crates
+addCoverObject(5.0, 1.4, 2.0, -10, -10, concreteCoverMat);
+addCoverObject(5.0, 1.4, 2.0, 10, 10, concreteCoverMat);
+addCoverObject(2.0, 1.4, 5.0, -10, 10, concreteCoverMat);
+addCoverObject(2.0, 1.4, 5.0, 10, -10, concreteCoverMat);
+addCoverObject(4.0, 1.5, 2.5, -30, 0, woodCoverMat);
+addCoverObject(4.0, 1.5, 2.5, 30, 0, woodCoverMat);
+addCoverObject(3.0, 1.4, 3.0, 0, -18, woodCoverMat);
+addCoverObject(3.0, 1.4, 3.0, 0, 18, woodCoverMat);
+addCoverObject(2.0, 1.3, 4.0, -28, 26, concreteCoverMat);
+addCoverObject(2.0, 1.3, 4.0, 28, -26, concreteCoverMat);
+addCoverObject(4.0, 1.4, 2.0, -24, -36, woodCoverMat);
+addCoverObject(4.0, 1.4, 2.0, 24, 36, woodCoverMat);
 
 // ================= Weapons & Loadouts =================
 const WEAPONS = [
-  { key: 'AR',      name: 'ASSAULT RIFLE // PULSE', damage: 24, fireDelay: 0.12, mag: 30, reserve: 90,  reload: 1.6, bulletSpeed: 75, spread: 0.018, pellets: 1, life: 2.0, color: 0x333b4d, fov: 45, scopeType: 'REDDOT', recoilKick: 0.014, recoilSide: 0.008 },
-  { key: 'SMG',     name: 'SMG // VECTOR-X',         damage: 14, fireDelay: 0.08, mag: 25, reserve: 100, reload: 1.3, bulletSpeed: 70, spread: 0.032, pellets: 1, life: 1.5, color: 0x223c58, fov: 50, scopeType: 'REDDOT', recoilKick: 0.010, recoilSide: 0.013 },
-  { key: 'SHOTGUN', name: 'CYBER-SHOTGUN // SLAG',   damage: 16, fireDelay: 0.85, mag: 6,  reserve: 24,  reload: 2.2, bulletSpeed: 55, spread: 0.10,  pellets: 8, life: 0.6, color: 0x543220, fov: 60, scopeType: 'NONE', recoilKick: 0.045, recoilSide: 0.018 },
-  { key: 'SNIPER',  name: 'RAIL-SNIPER // APEX',     damage: 85, fireDelay: 1.4,  mag: 5,  reserve: 15,  reload: 2.8, bulletSpeed: 115, spread: 0.001, pellets: 1, life: 3.0, color: 0x1e222a, fov: 14, scopeType: 'SNIPER', recoilKick: 0.065, recoilSide: 0.006 },
+  { key: 'AR',      name: 'ASSAULT RIFLE // PULSE', damage: 24, fireDelay: 0.12, mag: 30, reserve: 90,  reload: 1.6, bulletSpeed: 80, spread: 0.016, pellets: 1, life: 2.0, color: 0x333b4d, fov: 45, scopeType: 'REDDOT', recoilKick: 0.014, recoilSide: 0.008 },
+  { key: 'SMG',     name: 'SMG // VECTOR-X',         damage: 14, fireDelay: 0.08, mag: 25, reserve: 100, reload: 1.3, bulletSpeed: 75, spread: 0.030, pellets: 1, life: 1.5, color: 0x223c58, fov: 50, scopeType: 'REDDOT', recoilKick: 0.010, recoilSide: 0.013 },
+  { key: 'SHOTGUN', name: 'CYBER-SHOTGUN // SLAG',   damage: 16, fireDelay: 0.85, mag: 6,  reserve: 24,  reload: 2.2, bulletSpeed: 60, spread: 0.095, pellets: 8, life: 0.6, color: 0x543220, fov: 60, scopeType: 'NONE', recoilKick: 0.045, recoilSide: 0.018 },
+  { key: 'SNIPER',  name: 'RAIL-SNIPER // APEX',     damage: 85, fireDelay: 1.4,  mag: 5,  reserve: 15,  reload: 2.8, bulletSpeed: 125, spread: 0.001, pellets: 1, life: 3.0, color: 0x1e222a, fov: 14, scopeType: 'SNIPER', recoilKick: 0.065, recoilSide: 0.006 },
 ];
 
 let selectedLoadoutIndex = 0;
@@ -1155,7 +1139,7 @@ function applySelectedLoadout() {
   updateWeaponHud();
 }
 
-// ================= Game Stats, Telemetry & Team Management =================
+// ================= Game Stats & Telemetry =================
 let myPlayerName = 'AGENT-' + Math.floor(Math.random() * 899 + 100);
 let currentRoomCode = 'SECTOR-7';
 let myTeam = 'RED';
@@ -1249,7 +1233,7 @@ function setupLoadoutPicker(containerId) {
 setupLoadoutPicker('lobbyLoadoutPicker');
 setupLoadoutPicker('respawnLoadoutPicker');
 
-// ================= 3D Proximity Voice Chat System =================
+// ================= 75m Boosted 3D Proximity Voice Chat =================
 let voiceAudioCtx = null;
 let localVoiceStream = null;
 let localVoiceSource = null;
@@ -1257,11 +1241,11 @@ let localAnalyser = null;
 let isMicMuted = false;
 let localIsSpeaking = false;
 
-// Remote voices: peerId -> { stream, source, panner, gain, analyser, hiddenAudio, isSpeaking, volume, call }
+// Remote voices map: peerId -> { stream, source, panner, gain, analyser, hiddenAudio, isSpeaking, volume, call }
 const remoteVoices = new Map();
 const pendingVoiceCalls = new Set();
-const MAX_PROXIMITY_DIST = 55;
-const MIN_PROXIMITY_DIST = 3.5;
+const MAX_PROXIMITY_DIST = 75; // Increased to 75m range
+const MIN_PROXIMITY_DIST = 4.0;
 
 function getOrCreateAudioContext() {
   if (!voiceAudioCtx) {
@@ -1292,15 +1276,11 @@ async function initProximityMic() {
 
   try {
     localVoiceStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-      },
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       video: false
     });
   } catch (err) {
-    console.warn('Microphone inaccessible or denied. Engaging silent fallback stream so you can still hear other operatives.', err);
+    console.warn('Microphone access denied or unavailable. Engaging fallback audio receiving stream.', err);
     localVoiceStream = createSilentFallbackStream();
     isMicMuted = true;
   }
@@ -1346,8 +1326,6 @@ function updateMicHudDisplay() {
 }
 
 micHudToggle.addEventListener('click', () => toggleMicMute());
-micTouchBtn.addEventListener('touchstart', (e) => { e.preventDefault(); toggleMicMute(); }, { passive: false });
-
 window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyV') toggleMicMute();
 });
@@ -1356,7 +1334,6 @@ function setupRemoteVoice(remotePeerId, stream, call = null) {
   const ctx = getOrCreateAudioContext();
   cleanupRemoteVoice(remotePeerId);
 
-  // Hidden audio element to guarantee browser stream processing
   const hiddenAudio = document.createElement('audio');
   hiddenAudio.srcObject = stream;
   hiddenAudio.muted = true;
@@ -1366,13 +1343,13 @@ function setupRemoteVoice(remotePeerId, stream, call = null) {
   const panner = ctx.createPanner();
   panner.panningModel = 'HRTF';
   panner.distanceModel = 'inverse';
-  panner.refDistance = 3;
+  panner.refDistance = 4;
   panner.maxDistance = MAX_PROXIMITY_DIST;
-  panner.rolloffFactor = 1.3;
+  panner.rolloffFactor = 1.0;
   panner.coneInnerAngle = 360;
 
   const gain = ctx.createGain();
-  gain.gain.value = 1.0;
+  gain.gain.value = 1.8; // Sound boosted for louder and clearer team voice
 
   const analyser = ctx.createAnalyser();
   analyser.fftSize = 256;
@@ -1384,15 +1361,8 @@ function setupRemoteVoice(remotePeerId, stream, call = null) {
   gain.connect(ctx.destination);
 
   remoteVoices.set(remotePeerId, {
-    stream,
-    source,
-    panner,
-    gain,
-    analyser,
-    hiddenAudio,
-    call,
-    isSpeaking: false,
-    volume: 0
+    stream, source, panner, gain, analyser, hiddenAudio, call,
+    isSpeaking: false, volume: 0
   });
 
   updateSpeakerTabs();
@@ -1417,12 +1387,10 @@ function cleanupRemoteVoice(remotePeerId) {
   updateSpeakerTabs();
 }
 
-// Check Audio Energy (RMS) for Speaker Tabs & 3D Model Glow
 const freqBuffer = new Uint8Array(128);
 const VOICE_THRESHOLD = 14;
 
 function pollVoiceActivity() {
-  // Local operative voice activity
   if (localAnalyser && !isMicMuted) {
     localAnalyser.getByteFrequencyData(freqBuffer);
     let sum = 0;
@@ -1432,7 +1400,6 @@ function pollVoiceActivity() {
     localIsSpeaking = false;
   }
 
-  // Remote operatives voice activity (all players, regardless of team)
   remoteVoices.forEach((v, peerId) => {
     if (v.analyser) {
       v.analyser.getByteFrequencyData(freqBuffer);
@@ -1442,7 +1409,6 @@ function pollVoiceActivity() {
       v.volume = avg;
       v.isSpeaking = avg > VOICE_THRESHOLD;
 
-      // In-game 3D visor glow pulse when an operative is speaking
       const mesh = remotePlayers.get(peerId);
       if (mesh && mesh.userData && mesh.userData.visor) {
         if (v.isSpeaking) {
@@ -1461,7 +1427,6 @@ setInterval(pollVoiceActivity, 70);
 function updateSpeakerTabs() {
   voiceSpeakerTabsEl.innerHTML = '';
 
-  // Local Player Tab
   const localTab = document.createElement('div');
   localTab.className = `voice-tab team-${myTeam.toLowerCase()}` + (localIsSpeaking ? ' speaking' : '') + (isMicMuted ? ' muted' : '');
   localTab.innerHTML = `
@@ -1472,7 +1437,6 @@ function updateSpeakerTabs() {
   `;
   voiceSpeakerTabsEl.appendChild(localTab);
 
-  // If in Solo Mode, display mock bots
   if (isSoloMode) {
     const b1 = document.createElement('div');
     b1.className = 'voice-tab team-blue muted';
@@ -1487,7 +1451,6 @@ function updateSpeakerTabs() {
 
   if (!networkManager) return;
 
-  // Remote Players Tabs
   for (const [peerId, info] of networkManager.lobbyRoster.entries()) {
     if (networkManager.peer && peerId === networkManager.peer.id) continue;
 
@@ -1498,7 +1461,7 @@ function updateSpeakerTabs() {
     let distLabel = 'LOBBY';
     if (isMatchActive && rPlayerMesh) {
       const dist = Math.round(camera.position.distanceTo(rPlayerMesh.position));
-      distLabel = dist > MAX_PROXIMITY_DIST ? '>50m' : `${dist}m`;
+      distLabel = dist > MAX_PROXIMITY_DIST ? '>75m' : `${dist}m`;
     }
 
     const tab = document.createElement('div');
@@ -1559,7 +1522,7 @@ function createPlayerMesh(name, team) {
   return root;
 }
 
-// ================= Multiplayer WebRTC Network & Voice Mesh =================
+// ================= Multiplayer WebRTC Network =================
 class NetworkManager {
   constructor(roomCode, playerName) {
     this.roomCode = roomCode.toUpperCase().trim() || 'SECTOR-7';
@@ -1577,7 +1540,6 @@ class NetworkManager {
   setupVoiceListeners() {
     if (!this.peer) return;
 
-    // Handle Incoming Voice Calls
     this.peer.on('call', (call) => {
       const streamToSend = localVoiceStream || createSilentFallbackStream();
       call.answer(streamToSend);
@@ -1593,10 +1555,8 @@ class NetworkManager {
     if (!this.peer || !localVoiceStream) return;
     const myId = this.peer.id;
 
-    // Connect to all peers in the room regardless of team (anyone can hear anyone)
     for (const [peerId, info] of this.lobbyRoster.entries()) {
       if (peerId === myId) continue;
-      // Deterministic call initiation: smaller lexicographical ID initiates the call
       if (myId < peerId && !remoteVoices.has(peerId) && !pendingVoiceCalls.has(peerId)) {
         pendingVoiceCalls.add(peerId);
         const call = this.peer.call(peerId, localVoiceStream);
@@ -1806,21 +1766,31 @@ class NetworkManager {
 
 let networkManager = null;
 
-// ================= Controls & Spawn Handling =================
-const controls = new PointerLockControls(camera, document.body);
-const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-if (isTouchDevice) document.body.classList.add('touch-device');
+// ================= ACCURATE TEAM SPAWN POINTS =================
+// Fixed Spawns: Cleared from all building/cover colliders inside the dense perimeter
+const RED_SPAWNS = [
+  { x: -46, z: 0 },
+  { x: -46, z: -6 },
+  { x: -46, z: 6 },
+  { x: -42, z: 2 }
+];
 
-const RED_SPAWNS = [{ x: -60, z: -30 }, { x: -50, z: -10 }, { x: -70, z: 20 }, { x: -35, z: 10 }];
-const BLUE_SPAWNS = [{ x: 55, z: 20 }, { x: 65, z: -20 }, { x: 45, z: 50 }, { x: 30, z: -25 }];
+const BLUE_SPAWNS = [
+  { x: 46, z: 0 },
+  { x: 46, z: -6 },
+  { x: 46, z: 6 },
+  { x: 42, z: -2 }
+];
 
 function spawnPlayerToTeamBase() {
   const pool = myTeam === 'RED' ? RED_SPAWNS : BLUE_SPAWNS;
   const sp = pool[Math.floor(Math.random() * pool.length)];
-  camera.position.set(sp.x, heightAt(sp.x, sp.z) + 1.8, sp.z);
+  const spawnY = heightAt(sp.x, sp.z) + 1.8;
+  camera.position.set(sp.x, spawnY, sp.z);
   verticalVelocity = 0;
   if (myTeam === 'RED') camera.rotation.y = -Math.PI / 2;
   else camera.rotation.y = Math.PI / 2;
+  camera.rotation.x = 0;
 }
 
 // Entry Modal Actions
@@ -1848,7 +1818,7 @@ soloLobbyBtn.addEventListener('click', async () => {
   updateSpeakerTabs();
 });
 
-// Team Switching in Lobby
+// Team Switching
 joinRedBtn.addEventListener('click', () => {
   if (isMatchActive) return;
   myTeam = 'RED';
@@ -1873,7 +1843,6 @@ joinBlueBtn.addEventListener('click', () => {
   }
 });
 
-// Host settings
 timeSelect.addEventListener('change', () => {
   matchDuration = parseInt(timeSelect.value);
   timeRemaining = matchDuration;
@@ -2024,10 +1993,14 @@ function finishMatch() {
   }
 }
 
-// ================= Movement, Input & Shooting =================
+// ================= Movement, Input & Multi-Touch System =================
+const controls = new PointerLockControls(camera, document.body);
+const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+if (isTouchDevice) document.body.classList.add('touch-device');
+
 const move = { forward: false, back: false, left: false, right: false };
 const velocity = new THREE.Vector3();
-const BASE_SPEED = 8.0;
+const BASE_SPEED = 8.5;
 let verticalVelocity = 0;
 let isGrounded = true;
 const GRAVITY = -22;
@@ -2061,29 +2034,31 @@ document.addEventListener('keyup', (e) => {
   }
 });
 
-// Mobile Controls
+// ================= ROBUST MULTI-TOUCH ENGINE =================
 const joystickZone = document.getElementById('joystickZone');
 const joystickKnob = document.getElementById('joystickKnob');
+const touchLookZone = document.getElementById('touchLookZone');
 const fireBtn = document.getElementById('fireBtn');
 const adsBtn = document.getElementById('adsBtn');
 const reloadBtn = document.getElementById('reloadBtn');
 const jumpBtn = document.getElementById('jumpBtn');
 
-jumpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); tryJump(); }, { passive: false });
-reloadBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startReload(); }, { passive: false });
-adsBtn.addEventListener('touchstart', (e) => {
-  e.preventDefault();
-  setAimState(!isAiming);
-  adsBtn.classList.toggle('active', isAiming);
-}, { passive: false });
-
 let joystickTouchId = null;
 let joystickVector = { x: 0, y: 0 };
 let joystickCenter = { x: 0, y: 0 };
-const JOYSTICK_MAX_RADIUS = 40;
+const JOYSTICK_MAX_RADIUS = 42;
 
+let lookTouchId = null;
+let lastLookX = 0, lastLookY = 0;
+const LOOK_SENSITIVITY = 0.0065;
+
+let isFireButtonHeld = false;
+let fireTouchId = null;
+
+// 1. Virtual Joystick Multi-Touch Handler
 joystickZone.addEventListener('touchstart', (e) => {
   e.preventDefault();
+  if (joystickTouchId !== null) return;
   const touch = e.changedTouches[0];
   joystickTouchId = touch.identifier;
   const rect = joystickZone.getBoundingClientRect();
@@ -2101,7 +2076,7 @@ joystickZone.addEventListener('touchmove', (e) => {
   }
 }, { passive: false });
 
-const resetJoystick = (e) => {
+const releaseJoystick = (e) => {
   for (let i = 0; i < e.changedTouches.length; i++) {
     if (e.changedTouches[i].identifier === joystickTouchId) {
       joystickTouchId = null;
@@ -2111,11 +2086,12 @@ const resetJoystick = (e) => {
     }
   }
 };
-joystickZone.addEventListener('touchend', resetJoystick);
-joystickZone.addEventListener('touchcancel', resetJoystick);
+joystickZone.addEventListener('touchend', releaseJoystick, { passive: false });
+joystickZone.addEventListener('touchcancel', releaseJoystick, { passive: false });
 
 function updateJoystick(clientX, clientY) {
-  const dx = clientX - joystickCenter.x, dy = clientY - joystickCenter.y;
+  const dx = clientX - joystickCenter.x;
+  const dy = clientY - joystickCenter.y;
   const dist = Math.sqrt(dx * dx + dy * dy);
   const angle = Math.atan2(dy, dx);
   const clampedDist = Math.min(dist, JOYSTICK_MAX_RADIUS);
@@ -2126,34 +2102,29 @@ function updateJoystick(clientX, clientY) {
   joystickVector.y = -knobY / JOYSTICK_MAX_RADIUS;
 }
 
-let isMouseDown = false;
-fireBtn.addEventListener('touchstart', (e) => { e.preventDefault(); isMouseDown = true; tryShoot(); }, { passive: false });
-fireBtn.addEventListener('touchend', (e) => { e.preventDefault(); isMouseDown = false; });
-
-let lookTouchId = null;
-let lastLookX = 0, lastLookY = 0;
-const LOOK_SENSITIVITY = 0.0065;
-
-window.addEventListener('touchstart', (e) => {
+// 2. Camera Look Multi-Touch Drag Handler
+touchLookZone.addEventListener('touchstart', (e) => {
   if (!isMatchActive) return;
   for (let i = 0; i < e.changedTouches.length; i++) {
     const t = e.changedTouches[i];
-    if (t.target.closest('#touchControls') || t.target.closest('.modal-overlay')) continue;
     if (lookTouchId === null) {
       lookTouchId = t.identifier;
-      lastLookX = t.clientX; lastLookY = t.clientY;
+      lastLookX = t.clientX;
+      lastLookY = t.clientY;
+      break;
     }
   }
 }, { passive: true });
 
-window.addEventListener('touchmove', (e) => {
+touchLookZone.addEventListener('touchmove', (e) => {
   if (!isMatchActive) return;
   for (let i = 0; i < e.changedTouches.length; i++) {
     const t = e.changedTouches[i];
     if (t.identifier === lookTouchId) {
       const dx = t.clientX - lastLookX;
       const dy = t.clientY - lastLookY;
-      lastLookX = t.clientX; lastLookY = t.clientY;
+      lastLookX = t.clientX;
+      lastLookY = t.clientY;
 
       const sens = isAiming ? LOOK_SENSITIVITY * 0.5 : LOOK_SENSITIVITY;
       camera.rotation.y -= dx * sens;
@@ -2164,15 +2135,60 @@ window.addEventListener('touchmove', (e) => {
   }
 }, { passive: true });
 
-const endLookTouch = (e) => {
+const releaseLookTouch = (e) => {
   for (let i = 0; i < e.changedTouches.length; i++) {
     if (e.changedTouches[i].identifier === lookTouchId) {
-      lookTouchId = null; break;
+      lookTouchId = null;
+      break;
     }
   }
 };
-window.addEventListener('touchend', endLookTouch);
-window.addEventListener('touchcancel', endLookTouch);
+touchLookZone.addEventListener('touchend', releaseLookTouch, { passive: true });
+touchLookZone.addEventListener('touchcancel', releaseLookTouch, { passive: true });
+
+// 3. Multi-Touch Independent Action Buttons
+fireBtn.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  const touch = e.changedTouches[0];
+  fireTouchId = touch.identifier;
+  isFireButtonHeld = true;
+  fireBtn.classList.add('active');
+  tryShoot();
+}, { passive: false });
+
+const releaseFire = (e) => {
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    if (e.changedTouches[i].identifier === fireTouchId) {
+      fireTouchId = null;
+      isFireButtonHeld = false;
+      fireBtn.classList.remove('active');
+      break;
+    }
+  }
+};
+fireBtn.addEventListener('touchend', releaseFire, { passive: false });
+fireBtn.addEventListener('touchcancel', releaseFire, { passive: false });
+
+adsBtn.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  setAimState(!isAiming);
+  adsBtn.classList.toggle('active', isAiming);
+}, { passive: false });
+
+jumpBtn.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  tryJump();
+}, { passive: false });
+
+reloadBtn.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  startReload();
+}, { passive: false });
+
+micTouchBtn.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  toggleMicMute();
+}, { passive: false });
 
 // ================= Bullets, Hitmarkers & PvP Combat =================
 const bulletGeo = new THREE.SphereGeometry(0.09, 6, 6);
@@ -2205,7 +2221,7 @@ function showHitmarker() {
 function spawnRemoteTracer(origin, dir, team) {
   const tracer = new THREE.Mesh(bulletGeo, new THREE.MeshBasicMaterial({ color: team === 'RED' ? 0xff2244 : 0x00e5ff }));
   tracer.position.copy(origin);
-  tracer.userData.velocity = dir.clone().multiplyScalar(70);
+  tracer.userData.velocity = dir.clone().multiplyScalar(75);
   tracer.userData.life = 1.2;
   scene.add(tracer);
   bullets.push(tracer);
@@ -2261,6 +2277,7 @@ function tryShoot() {
   updateWeaponHud();
 }
 
+let isMouseDown = false;
 document.addEventListener('mousedown', (e) => { 
   if (!isMatchActive) return;
   if (e.button === 0) { isMouseDown = true; tryShoot(); } 
@@ -2335,14 +2352,13 @@ function animate() {
     mesh.userData.nameTag.lookAt(camera.position);
   });
 
-  // ================= Update Web Audio Spatial Listener & Proximity Panners =================
+  // ================= 75m Boosted Web Audio Spatial Orientation =================
   if (voiceAudioCtx) {
     const p = camera.position;
     const fwd = new THREE.Vector3();
     camera.getWorldDirection(fwd);
     const up = camera.up;
 
-    // Update Listener
     if (voiceAudioCtx.listener.positionX) {
       voiceAudioCtx.listener.positionX.value = p.x;
       voiceAudioCtx.listener.positionY.value = p.y;
@@ -2358,30 +2374,27 @@ function animate() {
       voiceAudioCtx.listener.setOrientation(fwd.x, fwd.y, fwd.z, up.x, up.y, up.z);
     }
 
-    // Update each remote operative's 3D panner position & distance gain
     remoteVoices.forEach((voice, peerId) => {
       const playerMesh = remotePlayers.get(peerId);
 
       if (!isMatchActive || !playerMesh) {
-        // Everyone in lobby is in briefing range
-        voice.gain.gain.value = 0.9;
+        voice.gain.gain.value = 1.5;
         return;
       }
 
       const targetPos = playerMesh.position;
       const dist = camera.position.distanceTo(targetPos);
 
-      // Distance Cutoff & Attenuation
+      // Boosted 75m Audio Curve
       if (dist > MAX_PROXIMITY_DIST) {
-        voice.gain.gain.value = 0; // completely cut off outside 55m
+        voice.gain.gain.value = 0;
       } else if (dist <= MIN_PROXIMITY_DIST) {
-        voice.gain.gain.value = 1.0;
+        voice.gain.gain.value = 2.0;
       } else {
         const factor = 1 - (dist - MIN_PROXIMITY_DIST) / (MAX_PROXIMITY_DIST - MIN_PROXIMITY_DIST);
-        voice.gain.gain.value = Math.max(0, Math.min(1, factor * factor));
+        voice.gain.gain.value = Math.max(0, Math.min(2.0, factor * 1.8));
       }
 
-      // Spatial orientation
       if (voice.panner.positionX) {
         voice.panner.positionX.value = targetPos.x;
         voice.panner.positionY.value = targetPos.y + 1.6;
@@ -2393,7 +2406,7 @@ function animate() {
   }
 
   if (fireTimer > 0) fireTimer -= delta;
-  if (isMouseDown) tryShoot();
+  if (isMouseDown || isFireButtonHeld) tryShoot();
 
   // Recoil recovery
   if (recoilPitch !== 0 || recoilYaw !== 0) {
@@ -2543,4 +2556,3 @@ window.addEventListener('resize', () => {
 </script>
 </body>
 </html>
-
