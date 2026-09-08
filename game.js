@@ -526,7 +526,7 @@ let personalDeaths = 0;
 
 // Dash / Slide System State
 const DASH_DURATION = 0.5;
-const DASH_COOLDOWN = 1.2;
+const DASH_COOLDOWN = 0.75;
 let isDashing = false;
 let dashTimeRemaining = 0;
 let dashCooldownTimer = 0;
