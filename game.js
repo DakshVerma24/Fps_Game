@@ -580,6 +580,15 @@ const ammoReserveEl = document.getElementById('ammoReserve');
 const reloadMsgEl = document.getElementById('reloadMsg');
 const slots = [document.getElementById('slot0'), document.getElementById('slot1'), document.getElementById('slot2'), document.getElementById('slot3')];
 
+// Auto-fill from URL query param if friend clicked an invite link
+const urlParams = new URLSearchParams(window.location.search);
+const inviteRoom = urlParams.get('room') || urlParams.get('join');
+const urlRole = urlParams.get('role');
+if (inviteRoom) {
+  const roomInput = document.getElementById('roomCodeInput');
+  if (roomInput) roomInput.value = inviteRoom;
+}
+
 function updateScoreboard() {
   redScoreEl.textContent = redScore;
   blueScoreEl.textContent = blueScore;
@@ -650,15 +659,13 @@ const pendingVoiceCalls = new Set();
 const MAX_PROXIMITY_DIST = 75;
 const MIN_PROXIMITY_DIST = 3.0;
 
-// Upgraded STUN + Working OpenRelay TURN servers for Cross-Network & Cellular NAT traversal
+// Upgraded Multi-Tier ICE Servers: Google + Cloudflare STUN, with OpenRelay TURNS over TLS (Port 443 TCP)
 const PEER_CONFIG = {
   config: {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:stun3.l.google.com:19302' },
-      { urls: 'stun:stun4.l.google.com:19302' },
       { urls: 'stun:stun.cloudflare.com:3478' },
       { urls: 'stun:openrelay.metered.ca:80' },
       {
@@ -673,6 +680,12 @@ const PEER_CONFIG = {
       },
       {
         urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        // TURNS over TLS (port 443) bypasses strict Wi-Fi router firewalls and symmetric NAT
+        urls: 'turns:openrelay.metered.ca:443?transport=tcp',
         username: 'openrelayproject',
         credential: 'openrelayproject'
       }
@@ -693,7 +706,6 @@ function getOrCreateAudioContext() {
   return voiceAudioCtx;
 }
 
-// Mobile Web Audio unlock listener
 window.addEventListener('touchstart', () => getOrCreateAudioContext(), { once: false, passive: true });
 window.addEventListener('pointerdown', () => getOrCreateAudioContext(), { once: false, passive: true });
 
@@ -723,7 +735,7 @@ async function initProximityMic() {
       video: false
     });
   } catch (err) {
-    console.warn('Microphone access denied or unavailable. Fallback audio active.', err);
+    console.warn('Microphone fallback active:', err);
     localVoiceStream = createSilentFallbackStream();
     isMicMuted = true;
   }
@@ -735,7 +747,7 @@ async function initProximityMic() {
     localAnalyser.smoothingTimeConstant = 0.4;
     localVoiceSource.connect(localAnalyser);
   } catch (e) {
-    console.warn('Error attaching local audio analyser:', e);
+    console.warn('Audio analyser error:', e);
   }
 
   updateMicHudDisplay();
@@ -818,7 +830,7 @@ function setupRemoteVoice(remotePeerId, stream, call = null) {
     panner.connect(gain);
     gain.connect(ctx.destination);
   } catch (e) {
-    console.warn('Web Audio routing fallback for peer:', remotePeerId, e);
+    console.warn('Web Audio routing fallback:', e);
   }
 
   remoteVoices.set(remotePeerId, {
@@ -986,11 +998,11 @@ function createPlayerMesh(name, team) {
 
 // ================= Reworked WebRTC Network Manager =================
 class NetworkManager {
-  constructor(roomCode, playerName) {
-    // Sanitize room code to prevent invalid PeerJS identifiers
+  constructor(roomCode, playerName, forceRole = null) {
     this.roomCode = (roomCode || 'SECTOR-7').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '-').replace(/^-+|-+$/g, '') || 'SECTOR-7';
     this.playerName = playerName.trim() || myPlayerName;
-    this.hostPeerId = `cyberfps-v2-host-${this.roomCode}`;
+    this.forceRole = forceRole; // 'host', 'join', or null (auto)
+    this.hostPeerId = `cyberfps-v3-host-${this.roomCode}`;
     this.peer = null;
     this.hostConn = null;
     this.clients = new Map();
@@ -998,7 +1010,13 @@ class NetworkManager {
     this.connecting = false;
     this.lastBroadcast = 0;
     this.lobbyRoster = new Map();
-    this.connectAsClient();
+    this.joinAttempts = 0;
+
+    if (this.forceRole === 'host') {
+      this.becomeHost();
+    } else {
+      this.connectAsClient();
+    }
   }
 
   cleanupPeer() {
@@ -1058,15 +1076,16 @@ class NetworkManager {
     this.cleanupPeer();
     this.isHost = false;
     this.connecting = true;
+    this.joinAttempts++;
 
-    lobbyRoleTitle.textContent = 'CONNECTING TO MISSION...';
-    clientWaitMsg.textContent = 'Searching for active host across networks...';
+    lobbyRoleTitle.textContent = 'CONNECTING AS CLIENT...';
+    clientWaitMsg.textContent = `Connecting to Host (Attempt ${this.joinAttempts})...`;
     clientWaitMsg.style.display = 'block';
     hostConfigRow.style.opacity = '0.5';
     hostConfigRow.style.pointerEvents = 'none';
     startMatchBtn.style.display = 'none';
 
-    const myRandomId = `cyberfps-v2-p-${this.roomCode}-${Math.floor(Math.random() * 1000000)}`;
+    const myRandomId = `cyberfps-v3-p-${this.roomCode}-${Math.floor(Math.random() * 1000000)}`;
     this.peer = new Peer(myRandomId, PEER_CONFIG);
 
     let connectionTimeout = null;
@@ -1076,10 +1095,8 @@ class NetworkManager {
       if (!this.connecting) return;
       this.setupVoiceListeners();
 
-      const conn = this.peer.connect(this.hostPeerId, { 
-        reliable: true,
-        serialization: 'json'
-      });
+      clientWaitMsg.textContent = `Negotiating NAT traversal with Host (${this.hostPeerId})...`;
+      const conn = this.peer.connect(this.hostPeerId, { reliable: true });
 
       conn.on('open', () => {
         hostFound = true;
@@ -1092,7 +1109,7 @@ class NetworkManager {
         hostConfigRow.style.opacity = '0.5';
         hostConfigRow.style.pointerEvents = 'none';
         startMatchBtn.style.display = 'none';
-        clientWaitMsg.textContent = 'Awaiting Mission Start from Host...';
+        clientWaitMsg.textContent = 'Connected! Awaiting Mission Start from Host...';
         clientWaitMsg.style.display = 'block';
 
         this.sendToHost({ type: 'joinLobby', id: this.peer.id, name: this.playerName, team: myTeam });
@@ -1102,34 +1119,46 @@ class NetworkManager {
       conn.on('close', () => {
         if (!this.isHost) {
           lobbyRoleTitle.textContent = 'HOST DISCONNECTED';
-          clientWaitMsg.textContent = 'Host left the session. Re-enter to restart.';
+          clientWaitMsg.textContent = 'Host closed the session. Re-enter to find a new host.';
           clientWaitMsg.style.display = 'block';
         }
       });
 
       conn.on('error', (err) => {
-        console.warn('Data connection error:', err);
+        console.warn('Data channel error:', err);
       });
 
-      // Generous 12-second window for cross-network WebRTC STUN/TURN negotiation
+      // 10-second timeout to allow cross-network WebRTC STUN/TURN negotiation
       connectionTimeout = setTimeout(() => {
         if (!hostFound && this.connecting && !this.isHost) {
-          console.log('No responsive host found within WAN window. Assuming host role...');
-          this.becomeHost();
+          if (this.forceRole === 'join') {
+            clientWaitMsg.textContent = `Host not found in "${this.roomCode}". Retrying...`;
+            setTimeout(() => this.connectAsClient(), 2000);
+          } else {
+            console.log('No responsive host found. Taking host role...');
+            this.becomeHost();
+          }
         }
-      }, 12000);
+      }, 10000);
     });
 
     this.peer.on('error', (err) => {
       console.warn('Peer client event:', err.type);
-      // peer-unavailable means signaling server verified host doesn't exist
       if (err.type === 'peer-unavailable') {
         if (connectionTimeout) clearTimeout(connectionTimeout);
         if (this.connecting && !this.isHost) {
-          this.becomeHost();
+          if (this.forceRole === 'join') {
+            clientWaitMsg.textContent = `Waiting for Host to create room "${this.roomCode}"... (Attempt ${this.joinAttempts})`;
+            setTimeout(() => this.connectAsClient(), 2500);
+          } else {
+            this.becomeHost();
+          }
         }
       } else if (err.type === 'unavailable-id') {
-        setTimeout(() => this.connectAsClient(), 600);
+        setTimeout(() => this.connectAsClient(), 500);
+      } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error') {
+        clientWaitMsg.textContent = `Signaling server busy. Retrying...`;
+        setTimeout(() => this.connectAsClient(), 3000);
       }
     });
   }
@@ -1139,7 +1168,8 @@ class NetworkManager {
     this.cleanupPeer();
     this.isHost = true;
 
-    lobbyRoleTitle.textContent = 'INITIALIZING AS HOST...';
+    lobbyRoleTitle.textContent = 'STARTING AS HOST...';
+    clientWaitMsg.style.display = 'none';
 
     this.peer = new Peer(this.hostPeerId, PEER_CONFIG);
 
@@ -1151,9 +1181,11 @@ class NetworkManager {
       hostConfigRow.style.pointerEvents = 'auto';
       startMatchBtn.style.display = 'inline-block';
       clientWaitMsg.style.display = 'none';
+
       this.lobbyRoster.set(this.peer.id, { name: this.playerName, team: myTeam });
       this.updateLobbyUI();
       this.syncVoiceMeshCalls();
+      this.injectInviteLinkButton();
     });
 
     this.peer.on('connection', (conn) => {
@@ -1164,7 +1196,6 @@ class NetworkManager {
 
       conn.on('data', (data) => {
         this.handleData(data, conn.peer);
-        // Relay to other connected peers
         for (const [id, c] of this.clients.entries()) {
           if (id !== conn.peer && c.open) {
             c.send(data);
@@ -1190,11 +1221,29 @@ class NetworkManager {
     this.peer.on('error', (err) => {
       console.warn('Host error:', err.type);
       if (err.type === 'unavailable-id') {
-        // Another peer claimed the host ID right as we switched; connect as client
+        // Another peer already hosts this room
         this.isHost = false;
         setTimeout(() => this.connectAsClient(), 500);
       }
     });
+  }
+
+  injectInviteLinkButton() {
+    let copyBtn = document.getElementById('copyInviteBtn');
+    if (!copyBtn && lobbyRoomTitle && lobbyRoomTitle.parentNode) {
+      copyBtn = document.createElement('button');
+      copyBtn.id = 'copyInviteBtn';
+      copyBtn.textContent = '📋 COPY INVITE LINK';
+      copyBtn.style.cssText = 'margin-left: 12px; padding: 6px 12px; font-size: 13px; font-family: inherit; font-weight: bold; cursor: pointer; background: #00e5ff; color: #0a0e17; border: none; border-radius: 4px; box-shadow: 0 0 10px rgba(0, 229, 255, 0.4);';
+      copyBtn.onclick = () => {
+        const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${this.roomCode}&role=join`;
+        navigator.clipboard.writeText(inviteUrl).then(() => {
+          copyBtn.textContent = '✅ LINK COPIED!';
+          setTimeout(() => { copyBtn.textContent = '📋 COPY INVITE LINK'; }, 2500);
+        });
+      };
+      lobbyRoomTitle.parentNode.insertBefore(copyBtn, lobbyRoomTitle.nextSibling);
+    }
   }
 
   setupClientListeners(conn) {
@@ -1266,7 +1315,6 @@ class NetworkManager {
         this.lobbyRoster.clear();
         for (const k in data.roster) this.lobbyRoster.set(k, data.roster[k]);
 
-        // Clean up avatars for any player who disconnected
         for (const [id] of remotePlayers.entries()) {
           if (!this.lobbyRoster.has(id)) {
             this.removePlayer(id);
@@ -1342,7 +1390,6 @@ class NetworkManager {
 
 let networkManager = null;
 
-// Periodic mesh check to maintain WebRTC calls across WAN
 setInterval(() => {
   if (networkManager) {
     networkManager.syncVoiceMeshCalls();
@@ -1389,7 +1436,7 @@ enterLobbyBtn.addEventListener('click', async () => {
   lobbyRoomTitle.textContent = currentRoomCode;
 
   if (networkManager) networkManager.destroy();
-  networkManager = new NetworkManager(currentRoomCode, myPlayerName);
+  networkManager = new NetworkManager(currentRoomCode, myPlayerName, urlRole);
 });
 
 soloLobbyBtn.addEventListener('click', async () => {
