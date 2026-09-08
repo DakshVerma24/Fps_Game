@@ -93,7 +93,7 @@ function createBuildingFacadeTexture(baseColorHex, litColorHex, density = 0.6) {
 
   ctx.strokeStyle = '#080a10'; ctx.lineWidth = 3;
   for (let y = 0; y <= 512; y += 48) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(512, y); ctx.stroke(); }
-  for (let x = 0; x <= 512; x += 48) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(512, y); ctx.stroke(); }
+  for (let x = 0; x <= 512; x += 48) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 512); ctx.stroke(); }
 
   const winW = 28, winH = 20;
   for (let y = 14; y < 512; y += 48) {
