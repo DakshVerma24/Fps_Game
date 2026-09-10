@@ -659,43 +659,35 @@ const pendingVoiceCalls = new Set();
 const MAX_PROXIMITY_DIST = 75;
 const MIN_PROXIMITY_DIST = 3.0;
 
-// Multi-Tier ICE Servers: Google STUN as a free fallback, plus dedicated Metered.ca
-// TURN credentials fetched dynamically via API key (Metered issues short-lived
-// username/credential pairs per request rather than a static one).
-const METERED_DOMAIN = 'dakshfps.metered.live';
-const METERED_API_KEY = 'uKXQZ0xqahiesuYOn5_rP-1iChyL66do6OFN8cgNgDSp_A_j';
-
-const FALLBACK_ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' }
-];
-
-let PEER_CONFIG = {
+// Multi-Tier ICE Servers: Google STUN + dedicated Metered.ca TURN credential
+// (generated once via the Metered REST API and hardcoded here — static, long-lived).
+const PEER_CONFIG = {
   config: {
-    iceServers: FALLBACK_ICE_SERVERS,
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:dakshfps.metered.live:80' },
+      {
+        urls: 'turn:dakshfps.metered.live:80',
+        username: '919e6b3e5701b28511e0229c',
+        credential: 'HAkGfDMH9sbMSpCm'
+      },
+      {
+        urls: 'turn:dakshfps.metered.live:443',
+        username: '919e6b3e5701b28511e0229c',
+        credential: 'HAkGfDMH9sbMSpCm'
+      },
+      {
+        // TURNS over TLS (port 443) bypasses strict Wi-Fi router firewalls and symmetric NAT
+        urls: 'turns:dakshfps.metered.live:443?transport=tcp',
+        username: '919e6b3e5701b28511e0229c',
+        credential: 'HAkGfDMH9sbMSpCm'
+      }
+    ],
     iceCandidatePoolSize: 10,
     sdpSemantics: 'unified-plan'
   }
 };
-
-// Kicks off a fetch for real TURN credentials; resolves once PEER_CONFIG is ready to use.
-const peerConfigReady = fetch(`https://${METERED_DOMAIN}/api/v1/turn/credentials?apiKey=${METERED_API_KEY}`)
-  .then(res => {
-    if (!res.ok) throw new Error(`Metered credential fetch failed: ${res.status}`);
-    return res.json();
-  })
-  .then(iceServers => {
-    PEER_CONFIG = {
-      config: {
-        iceServers: [...FALLBACK_ICE_SERVERS, ...iceServers],
-        iceCandidatePoolSize: 10,
-        sdpSemantics: 'unified-plan'
-      }
-    };
-  })
-  .catch(err => {
-    console.warn('Falling back to STUN-only ICE config (no TURN):', err);
-  });
 
 function getOrCreateAudioContext() {
   if (!voiceAudioCtx) {
@@ -1014,15 +1006,11 @@ class NetworkManager {
     this.lobbyRoster = new Map();
     this.joinAttempts = 0;
 
-    // Wait for real TURN credentials before touching the network — starting a
-    // Peer on the STUN-only fallback would silently kill cross-internet play.
-    peerConfigReady.then(() => {
-      if (this.forceRole === 'host') {
-        this.becomeHost();
-      } else {
-        this.connectAsClient();
-      }
-    });
+    if (this.forceRole === 'host') {
+      this.becomeHost();
+    } else {
+      this.connectAsClient();
+    }
   }
 
   cleanupPeer() {
