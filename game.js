@@ -659,41 +659,43 @@ const pendingVoiceCalls = new Set();
 const MAX_PROXIMITY_DIST = 75;
 const MIN_PROXIMITY_DIST = 3.0;
 
-// Upgraded Multi-Tier ICE Servers: Google + Cloudflare STUN, with OpenRelay TURNS over TLS (Port 443 TCP)
-const PEER_CONFIG = {
+// Multi-Tier ICE Servers: Google STUN as a free fallback, plus dedicated Metered.ca
+// TURN credentials fetched dynamically via API key (Metered issues short-lived
+// username/credential pairs per request rather than a static one).
+const METERED_DOMAIN = 'dakshfps.metered.live';
+const METERED_API_KEY = 'uKXQZ0xqahiesuYOn5_rP-1iChyL66do6OFN8cgNgDSp_A_j';
+
+const FALLBACK_ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' }
+];
+
+let PEER_CONFIG = {
   config: {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:stun.cloudflare.com:3478' },
-      { urls: 'stun:openrelay.metered.ca:80' },
-      {
-        urls: 'turn:openrelay.metered.ca:80',
-        username: 'openrelayproject',
-        credential: 'openrelayproject'
-      },
-      {
-        urls: 'turn:openrelay.metered.ca:443',
-        username: 'openrelayproject',
-        credential: 'openrelayproject'
-      },
-      {
-        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-        username: 'openrelayproject',
-        credential: 'openrelayproject'
-      },
-      {
-        // TURNS over TLS (port 443) bypasses strict Wi-Fi router firewalls and symmetric NAT
-        urls: 'turns:openrelay.metered.ca:443?transport=tcp',
-        username: 'openrelayproject',
-        credential: 'openrelayproject'
-      }
-    ],
+    iceServers: FALLBACK_ICE_SERVERS,
     iceCandidatePoolSize: 10,
     sdpSemantics: 'unified-plan'
   }
 };
+
+// Kicks off a fetch for real TURN credentials; resolves once PEER_CONFIG is ready to use.
+const peerConfigReady = fetch(`https://${METERED_DOMAIN}/api/v1/turn/credentials?apiKey=${METERED_API_KEY}`)
+  .then(res => {
+    if (!res.ok) throw new Error(`Metered credential fetch failed: ${res.status}`);
+    return res.json();
+  })
+  .then(iceServers => {
+    PEER_CONFIG = {
+      config: {
+        iceServers: [...FALLBACK_ICE_SERVERS, ...iceServers],
+        iceCandidatePoolSize: 10,
+        sdpSemantics: 'unified-plan'
+      }
+    };
+  })
+  .catch(err => {
+    console.warn('Falling back to STUN-only ICE config (no TURN):', err);
+  });
 
 function getOrCreateAudioContext() {
   if (!voiceAudioCtx) {
@@ -1012,11 +1014,15 @@ class NetworkManager {
     this.lobbyRoster = new Map();
     this.joinAttempts = 0;
 
-    if (this.forceRole === 'host') {
-      this.becomeHost();
-    } else {
-      this.connectAsClient();
-    }
+    // Wait for real TURN credentials before touching the network — starting a
+    // Peer on the STUN-only fallback would silently kill cross-internet play.
+    peerConfigReady.then(() => {
+      if (this.forceRole === 'host') {
+        this.becomeHost();
+      } else {
+        this.connectAsClient();
+      }
+    });
   }
 
   cleanupPeer() {
